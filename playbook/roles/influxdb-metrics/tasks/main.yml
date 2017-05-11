@@ -1,0 +1,10 @@
+- name: setup influxdb metrics template
+  template:
+    src: influxdb-metrics.yml
+    dest: /etc/origin/influxdb-metrics.yml
+
+- name: create metrics deployer template
+  command: oc create -f /etc/origin/influxdb-metrics.yml -n metrics
+  register: influxdb_template
+  failed_when: false
+  changed_when: "not influxdb_template.stdout.find('already exists')"

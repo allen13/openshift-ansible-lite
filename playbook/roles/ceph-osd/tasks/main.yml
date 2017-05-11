@@ -1,0 +1,41 @@
+- name: install python-setuptools - ceph-disk activate depends on it
+  yum: name=python-setuptools
+
+- include: system_tuning.yml
+
+- name: copy osd bootstrap key
+  copy:
+    dest: "{{ ceph_data_location }}/bootstrap-osd/ceph.keyring"
+    src: "files/ceph/{{ openshift_cluster }}/osd.keyring"
+    mode: 0600
+    owner: ceph
+    group: ceph
+
+- name: prepare ceph osd disks
+  command: ceph-disk prepare --cluster "{{ ceph_cluster_name }}" "/dev/{{ item }}"
+  with_items: "{{ ceph_empty_disks }}"
+
+- name: activate ceph osd disks
+  command: ceph-disk activate "/dev/{{ item }}1"
+  ignore_errors: true
+  with_items: "{{ ceph_empty_disks }}"
+
+- name: get osd id
+  shell: "ls {{ ceph_data_location }}/osd/ |grep -oh '[0-9]*'"
+  changed_when: false
+  failed_when: false
+  register: osd_ids
+
+- name: link ceph osd systemd file
+  file:
+    src: /usr/lib/systemd/system/ceph-osd@.service
+    dest: /etc/systemd/system/multi-user.target.wants/ceph-osd@{{ item }}.service
+    state: link
+  with_items: "{{ osd_ids.stdout_lines }}"
+
+- name: start and enable ceph osd
+  service:
+    name: ceph-osd@{{ item }}
+    state: started
+    enabled: yes
+  with_items: "{{ osd_ids.stdout_lines }}"

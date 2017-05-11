@@ -1,0 +1,14 @@
+- name: install influxdb telegraf
+  yum: name=https://dl.influxdata.com/telegraf/releases/telegraf-1.0.0_beta1.x86_64.rpm state=present
+  notify: restart telegraf
+
+- name: install telegraf setup
+  template: src=telegraf.conf dest=/etc/telegraf/telegraf.conf
+  notify: restart telegraf
+
+- name: give telegraf docker socket privileges
+  user: name=telegraf groups=docker append=yes
+  when: "'openshift-node' in group_names"
+
+- name: start and enable telegraf
+  service: name=telegraf state=started enabled=yes

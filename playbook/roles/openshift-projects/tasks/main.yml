@@ -1,0 +1,2 @@
+- include: create-openshift-project-with-policies.yml
+  with_items: "{{ openshift_projects }}"

@@ -1,0 +1,3 @@
+dependencies:
+  - openshift-common
+  - influxdb-defaults

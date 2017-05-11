@@ -1,0 +1,58 @@
+#!/bin/bash
+
+# Manage kapacitor tasks
+
+#### begin ansible module boilerplate functions ####
+#### https://gist.github.com/nowayride/3dba8d86bb55a4e35726 ####
+source $1
+
+fail_module() {
+  printf '{"failed": true, "msg": "%s"}' "$1"
+  exit 1
+}
+
+changed() {
+  printf '{"changed": %s}' "$1"
+  exit 0
+}
+
+default() {
+  if [ -z "$1" ]
+  then
+    ${!1}=$2
+  fi
+}
+
+require() {
+  if [ -z "${!1}" ]
+  then
+    printf '{"failed": true, "msg": "%s must be defined"}' "$1"
+    exit 1
+  fi
+}
+#### end ansible module boilerplate functions ####
+
+require name
+require type
+require tick
+require dbrp
+require url
+
+export KAPACITOR_URL="$url"
+
+kapacitor list tasks
+return_code="$?"
+if [ $return_code != 0 ]; then
+  fail_module "failed to connect to kapacitor"
+fi
+
+if [[ $(kapacitor list tasks | awk -v name=$name '$1 == name') ]]; then
+  changed false
+else
+  kapacitor define "$name" \
+    -type "$type" \
+    -tick "$tick" \
+    -dbrp "$dbrp"
+  kapacitor enable "$name"
+  changed true
+fi

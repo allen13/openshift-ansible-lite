@@ -1,0 +1,12 @@
+- name: create ceph-secret manifest secret
+  command: >
+    {{ openshift_client_binary }} secrets new -n internal ceph-secret-manifest
+    ceph-secret.yml=/etc/ceph/secret/ceph-secret.yml
+  register: secrets_task
+  failed_when: false
+  changed_when: "not secrets_task.stdout.find('already exists')"
+
+- name: deploy ceph openshift manager
+  oc_create:
+    manifest: "{{ lookup('template', 'ceph-openshift-manager.yml') }}"
+    project: internal

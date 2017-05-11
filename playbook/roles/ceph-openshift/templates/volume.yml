@@ -1,0 +1,35 @@
+kind: List
+apiVersion: v1
+metadata: {}
+items:
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    name: {{ item.name }}
+  spec:
+    capacity:
+      storage: {{ item.size_in_GB }}Gi
+    accessModes:
+      - ReadWriteOnce
+    rbd:
+      monitors:
+        - ceph-mon-{{ openshift_env }}-{{ openshift_dc }}.service.os:6789
+      pool: {{ ceph_block_device_pool }}
+      image: {{ item.name }}
+      user: admin
+      secretRef:
+         name: ceph-admin-keyring-secret
+      fsType: xfs
+      readOnly: false
+    persistentVolumeReclaimPolicy: Recycle
+
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    name: {{ item.name }}
+  spec:
+    accessModes:
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: {{ item.size_in_GB }}Gi

@@ -1,0 +1,184 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+import yaml
+import json
+import time
+import base64
+
+
+KIND_URL = {
+    'binding': '/api/v1/namespaces/{namespace}/bindings',
+    'endpoints': '/api/v1/namespaces/{namespace}/endpoints',
+    'limitrange': '/api/v1/namespaces/{namespace}/limitranges',
+    'namespace': '/api/v1/namespaces',
+    'node': '/api/v1/nodes',
+    'persistentvolume': '/api/v1/persistentvolumes',
+    'persistentvolumeclaim': '/api/v1/namespaces/{namespace}/persistentvolumeclaims',  # NOQA
+    'pod': '/api/v1/namespaces/{namespace}/pods',
+    'podtemplate': '/api/v1/namespaces/{namespace}/podtemplates',
+    'replicationcontroller': '/api/v1/namespaces/{namespace}/replicationcontrollers',  # NOQA
+    'resourcequota': '/api/v1/namespaces/{namespace}/resourcequotas',
+    'secret': '/api/v1/namespaces/{namespace}/secrets',
+    'service': '/api/v1/namespaces/{namespace}/services',
+    'serviceaccount': '/api/v1/namespaces/{namespace}/serviceaccounts'
+}
+
+def api_request(module, url, method='GET', headers=None, data=None):
+    body = None
+    if data:
+        data = json.dumps(data)
+
+    response, info = fetch_url(module, url, method=method, headers=headers, data=data)
+
+    if response is not None:
+        body = json.loads(response.read())
+    return info, body
+
+def kube_delete_resource(module, url, data):
+    name = None
+    if 'metadata' in data:
+        name = data['metadata'].get('name')
+    if name is None:
+        module.fail_json(msg='Missing a named resource in object metadata')
+    url = url + '/' + name
+
+    info, body = api_request(module, url, method='DELETE')
+    if info['status'] == 404:
+        return False, {}
+    if info['status'] == 200:
+        return True, body
+    module.fail_json(msg="%s: fetching URL '%s'" % (info['msg'], url))
+
+
+def kube_resource_exists(module, url, data):
+    name = data['metadata']['name']
+    info, body = api_request(module, url + '/' + name)
+    if info['status'] == 200:
+        return True, body
+    else:
+        return False, None
+
+def kube_create_resource(module, url, data):
+    resource_exists, body = kube_resource_exists(module, url, data)
+    if resource_exists:
+        return False, body
+
+    info, body = api_request(module, url, method='POST', data=data)
+
+    if info['status'] == 409:
+        name = data['metadata'].get('name', None)
+        info, body = api_request(module, url + '/' + name)
+        return False, body
+    if info['status'] == 400:
+        module.fail_json(msg=info)
+    return True, body
+
+
+def kube_replace_resource(module, url, data):
+    name = None
+    if 'metadata' in data:
+        name = data['metadata'].get('name')
+    if name is None:
+        module.fail_json(msg='Missing a named resource in object metadata')
+    url = url + '/' + name
+
+    info, body = api_request(module, url, method='PUT', data=data)
+    if info['status'] == 409:
+        name = data['metadata'].get('name', None)
+        info, body = api_request(module, url + '/' + name)
+        return False, body
+    return True, body
+
+
+def kube_update_resource(module, url, data):
+    name = None
+    if 'metadata' in data:
+        name = data['metadata'].get('name')
+    if name is None:
+        module.fail_json(msg='Missing a named resource in object metadata')
+    url = url + '/' + name
+
+    headers = {'Content-Type': 'application/strategic-merge-patch+json'}
+    info, body = api_request(module, url, method='PATCH', data=data,
+                             headers=headers)
+    if info['status'] == 409:
+        name = data['metadata'].get('name', None)
+        info, body = api_request(module, url + '/' + name)
+        return False, body
+    return True, body
+
+def build_kube_url(endpoint, data):
+    url = 'http://' + endpoint
+
+    namespace = 'default'
+    if data and 'metadata' in data:
+        namespace = data['metadata'].get('namespace', 'default')
+        kind = data['kind'].lower()
+        url = url + KIND_URL[kind]
+        url = url.replace('{namespace}', namespace)
+
+    return url
+
+def get_kube_data(module):
+    data = module.params.get('inline_data', {})
+    if not data:
+        dfile = module.params.get('file')
+        if dfile:
+            f = open(dfile, 'r')
+            data = yaml.load(f)
+
+    return data
+
+def wait_for_kube_controller(module):
+    endpoint = module.params.get('api_endpoint')
+    url = 'http://' + endpoint + '/version'
+
+    while True:
+        info, body = api_request(module, url)
+        if info['status'] == 200:
+            break
+        time.sleep(5)
+
+def main():
+    module = AnsibleModule(
+        argument_spec=dict(
+            api_endpoint=dict(required=False, default='127.0.0.1:8080'),
+            file=dict(required=False),
+            inline_data=dict(required=False),
+            state=dict(default='present',
+                       choices=['present', 'post', 'create',
+                                'absent', 'delete',
+                                'update', 'put',
+                                'replace', 'patch'])
+        )
+    )
+
+    data = get_kube_data(module)
+    url = build_kube_url(module.params.get('api_endpoint'), data)
+    state = module.params.get('state')
+    wait_for_kube_controller(module)
+
+    if state in ['present', 'post', 'create']:
+        changed, body = kube_create_resource(module, url, data)
+        module.exit_json(changed=changed, api_response=body)
+
+    if state in ['absent', 'delete']:
+        changed, body = kube_delete_resource(module, url, data)
+        module.exit_json(changed=changed, api_response=body)
+
+    if state in ['replace', 'put']:
+        changed, body = kube_replace_resource(module, url, data)
+        module.exit_json(changed=changed, api_response=body)
+
+    if state in ['update', 'patch']:
+        changed, body = kube_update_resource(module, url, data)
+        module.exit_json(changed=changed, api_response=body)
+
+
+from ansible.module_utils.basic import *
+from ansible.module_utils.urls import *
+
+
+if __name__ == '__main__':
+    main()

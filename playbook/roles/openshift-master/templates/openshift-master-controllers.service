@@ -1,0 +1,23 @@
+[Unit]
+Description=Openshift Master Controllers Service
+Documentation=https://github.com/openshift/origin
+After=network.target
+After=etcd.service
+Before=openshift-node.service
+Requires=network.target
+
+[Service]
+Type=notify
+EnvironmentFile=/etc/sysconfig/openshift-master
+Environment=GOTRACEBACK=crash
+ExecStart=/usr/bin/openshift start master controllers --config=${CONFIG_FILE} $OPTIONS
+LimitNOFILE=131072
+LimitCORE=infinity
+WorkingDirectory=/var/lib/origin/
+SyslogIdentifier=openshift-master-controllers
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+WantedBy=openshift-node.service

@@ -1,0 +1,11 @@
+openshift_master_loglevel: 0
+openshift_master_setup_certs: false
+
+openshift_htpasswd_users:
+  - name: admin
+    password: admin
+
+openshift_identity_provider: htpasswd
+openshift_identity_providers_yamlized: "{{ lookup('template', openshift_identity_provider + '-provider.yml') }}"
+
+ldap_login_attribute: sAMAccountName

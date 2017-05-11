@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: logging-deployer
+  labels:
+    component: deployer
+    logging-infra: deployer
+    provider: openshift
+spec:
+  containers:
+  - env:
+    - name: PROJECT
+      value: {{ openshift_logging_project }}
+    - name: IMAGE_PREFIX
+      value: docker.io/openshift/origin-
+    - name: IMAGE_VERSION
+      value: latest
+    - name: ENABLE_OPS_CLUSTER
+      value: 'false'
+    - name: KIBANA_HOSTNAME
+      value: {{ openshift_kibana_hostname }}
+    - name: KIBANA_OPS_HOSTNAME
+      value: kibana-ops.{{ openshift_external_dns_domain }}
+    image: docker.io/openshift/origin-logging-deployment:latest
+    imagePullPolicy: Always
+    name: deployer
+    volumeMounts:
+    - mountPath: "/secret"
+      name: secret
+      readOnly: true
+    - mountPath: "/etc/deploy"
+      name: empty
+  dnsPolicy: ClusterFirst
+  restartPolicy: Never
+  serviceAccount: logging-deployer
+  volumes:
+  - emptyDir: {}
+    name: empty
+  - name: secret
+    secret:
+      secretName: logging-deployer

@@ -1,0 +1,7 @@
+- name: restart openshift-node
+  service: name=openshift-node state=restarted
+  when: not (openshift_node_service_status_changed | default(false) | bool)
+
+- name: restart openvswitch
+  service: name=openvswitch state=restarted
+  when: not (openvswitch_service_status_changed | default(false) | bool)

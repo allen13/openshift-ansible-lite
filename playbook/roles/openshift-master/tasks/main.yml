@@ -1,0 +1,131 @@
+- name: install openshift origin
+  yum: name=origin state=latest
+  register: origin_master_install
+  notify:
+    - restart openshift-master-api
+    - restart openshift-master-controllers
+
+- set_fact:
+    origin_master_install_changed: "{{ origin_master_install | changed }}"
+
+- name: create openshift-master config directory
+  file:
+    path: "{{ openshift_master_config_path }}"
+    state: directory
+
+- name: install ca root certificate set
+  copy:
+    src: "files/{{ openshift_cluster }}/{{ item.file }}"
+    dest: "{{ openshift_master_config_path }}/{{ item.file }}"
+    mode: "{{ item.mode }}"
+    force: "{{ item.force | default(true) }}"
+  with_items:
+    - file: ca.crt
+      mode: '0644'
+    - file: ca.key
+      mode: '0600'
+    - file: ca.serial.txt
+      mode: '0644'
+      force: false
+
+- include: setup-certs.yml
+  when: openshift_master_setup_certs and inventory_hostname == groups['openshift-master'][0]
+
+- name: setup certs
+  copy:
+    src: "files/{{ openshift_cluster }}/{{ item.file }}"
+    dest: "{{ openshift_master_config_path }}/{{ item.file }}"
+    mode: "{{ item.mode }}"
+  with_items: "{{ openshift_master_files }}"
+
+- name: create the policy file
+  command: >
+    {{ openshift_admin_binary }} create-bootstrap-policy-file
+      --filename={{ openshift_master_config_path }}/policy.json
+  args:
+    creates: "{{ openshift_master_config_path }}/policy.json"
+
+- name: create the kube config directory
+  file:
+    path: /root/.kube/
+    state: directory
+
+- name: copy the admin kubeconfig to /root/.kube/config
+  copy:
+    src: "files/{{ openshift_cluster }}/admin.kubeconfig"
+    dest: /root/.kube/config
+
+- name: install the password file
+  template:
+    src: users.htpasswd
+    dest: "{{ openshift_master_config_path }}/users.htpasswd"
+  notify:
+    - restart openshift-master-api
+
+- name: install ldap group sync config
+  template:
+    src: sync-config.yml
+    dest: "{{ openshift_master_config_path }}/sync-config.yml"
+  when: "openshift_identity_provider == 'ldap'"
+
+- name: install openshift-master config
+  template:
+    src: master-config.yaml
+    dest: "{{ openshift_master_config_path }}/master-config.yaml"
+  notify:
+    - restart openshift-master-api
+    - restart openshift-master-controllers
+
+- name: install openshift-master sysconfig
+  template:
+    src: openshift-master.sysconfig
+    dest: /etc/sysconfig/openshift-master
+  notify:
+    - restart openshift-master-api
+    - restart openshift-master-controllers
+
+- name: install openshift-master api service
+  template:
+    src: openshift-master-api.service
+    dest: /etc/systemd/system/openshift-master-api.service
+  notify: restart openshift-master-api
+  register: openshift_master_api_service
+
+- name: install openshift-master controllers service
+  template:
+    src: openshift-master-controllers.service
+    dest: /etc/systemd/system/openshift-master-controllers.service
+  notify: restart openshift-master-controllers
+  register: openshift_master_controllers_service
+
+- name: reload service files
+  command: systemctl daemon-reload
+  when: openshift_master_api_service.changed or openshift_master_controllers_service.changed
+
+- name: force openshift.service.os to resolve to this host temporarily
+  lineinfile:
+    dest: /etc/hosts
+    regexp: "^{{ private_ip }}"
+    line: "{{ private_ip }} openshift.service.os"
+  changed_when: false
+
+- name: start and enable openshift-master-api
+  service: name=openshift-master-api state=started enabled=yes
+  register: api_started
+
+- name: wait for openshift api to be started
+  wait_for: host={{ private_ip }} delay=2 port=8443
+
+- name: start and enable openshift-master-controllers
+  service: name=openshift-master-controllers state=started enabled=yes
+  register: controller_started
+
+- name: wait for openshift controller to be started
+  wait_for: host=127.0.0.1 delay=2 port=8443
+
+- name: remove openshift.service.os from etc hosts
+  lineinfile:
+    dest: /etc/hosts
+    regexp: "^{{ private_ip }}"
+    state: absent
+  changed_when: false

@@ -1,0 +1,19 @@
+ceph_version: 9.2.1
+
+#Must be unique per cluster
+ceph_fsid: 186ffc5c-a6c9-4894-b0d7-f0b344dd609c
+ceph_admin_key: AQBIcA5XcBHaKBAA2c6GPOJVAY7q2eq5t+NGjQ==
+
+ceph_project: ceph
+ceph_cluster_name: ceph
+ceph_data_location: /var/lib/ceph
+ceph_tmp_path: "{{ ceph_data_location }}/tmp"
+ceph_bootstrap: ceph-bootstrap
+ceph_monitor: ceph-mon
+ceph_osd: ceph-osd
+ceph_rgw: ceph-rgw
+ceph_admin_keyring_file: /etc/ceph/ceph.client.admin.keyring
+
+ceph_osd_pool_default_size: 3
+ceph_mon_pg_warn_max_per_osd: 1000
+ceph_radosgw_civetweb_port: 8080

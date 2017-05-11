@@ -1,0 +1,15 @@
+- name: collect all ceph configs
+  hosts: ceph-mon[0]
+  become: true
+  gather_facts: false
+  tasks:
+    - name: transfer ceph conf locally
+      fetch:
+        src: /etc/ceph/ceph.conf
+        dest: /etc/ceph/ceph.conf
+        flat: true
+    - name: transfer ceph keyfile locally
+      fetch:
+        src: /etc/ceph/ceph.client.admin.keyring
+        dest: /etc/ceph/ceph.client.admin.keyring
+        flat: true

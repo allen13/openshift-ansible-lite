@@ -1,0 +1,364 @@
+- name: ansible version check
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: check if correct ansible version
+      debug: msg="You must be using ansible version 2 or greater, currently {{ ansible_version.full }}"
+      failed_when: "{{ ansible_version.major < 2 }}"
+      when: "{{ ansible_version.major < 2 }}"
+  tags:
+    - ansible-check
+    - ceph-standalone
+    - openshift
+
+- name: dnsmasq
+  hosts: all
+  gather_facts: false
+  become: true
+  roles:
+    - dnsmasq
+  tags:
+    - dnsmasq
+    - ceph-standalone
+    - openshift
+
+- name: common
+  hosts: all
+  gather_facts: false
+  become: true
+  roles:
+    - common
+  tags:
+    - common
+    - ceph-standalone
+    - openshift
+
+- name: repos
+  hosts: all
+  gather_facts: false
+  become: true
+  roles:
+    - repos
+  tags:
+    - repos
+    - ceph-standalone
+    - openshift
+
+- name: tinc
+  hosts: vpn-network-a:vpn-network-b
+  gather_facts: true
+  become: true
+  roles:
+    - tinc
+  tags:
+    - tinc
+    - openshift
+
+- name: shared-hosts-file
+  hosts: all
+  gather_facts: false
+  become: true
+  roles:
+    - shared-hosts-file
+  tags:
+    - shared-hosts-file
+    - ceph-standalone
+    - openshift
+
+- name: consul
+  hosts: all
+  gather_facts: false
+  become: true
+  roles:
+    - consul
+  tags:
+    - consul
+    - openshift
+
+- name: docker
+  hosts: openshift-node
+  gather_facts: false
+  become: true
+  roles:
+    - docker
+  tags:
+    - docker
+    - openshift
+
+- name: etcd
+  hosts: all
+  gather_facts: false
+  become: true
+  roles:
+    - role: etcd
+      when: "'etcd' in groups"
+  tags:
+    - etcd
+    - openshift
+
+- name: openshift-master servers
+  hosts: openshift-master
+  gather_facts: false
+  become: true
+  serial: 1
+  roles:
+    - openshift-master
+  tags:
+    - openshift-master
+    - openshift
+
+- name: openshift-node servers
+  hosts: openshift-node
+  gather_facts: false
+  become: true
+  roles:
+    - openshift-node
+  tags:
+    - openshift-node
+    - openshift
+
+- name: openshift manage cluster
+  hosts: openshift-master[0]
+  gather_facts: false
+  become: true
+  roles:
+    - openshift-manage-cluster
+  tags:
+    - openshift-manage-cluster
+    - openshift
+
+- name: openshift router
+  hosts: openshift-master[0]
+  gather_facts: false
+  become: true
+  roles:
+    - openshift-router
+  tags:
+    - openshift-router
+    - openshift
+
+- name: openshift cron jobs
+  hosts: openshift-master[0]
+  gather_facts: false
+  become: true
+  roles:
+    - openshift-cron
+  tags:
+    - openshift-cron
+    - openshift
+
+- name: openshift cron scripts
+  hosts: openshift-master:openshift-node
+  gather_facts: false
+  become: true
+  roles:
+    - openshift-cron-scripts
+  tags:
+    - openshift-cron-scripts
+    - openshift
+
+- name: ceph config
+  hosts: ceph-mon:ceph-osd:ceph-rgw:openshift-node:openshift-master
+  gather_facts: false
+  become: true
+  serial: 1
+  roles:
+    - role: ceph-config
+      when: "'ceph-mon' in groups"
+  tags:
+    - ceph-config
+    - ceph
+    - ceph-standalone
+
+- name: ceph monitor daemon
+  hosts: ceph-mon
+  gather_facts: false
+  become: true
+  roles:
+    - ceph-mon
+  tags:
+    - ceph-mon
+    - ceph
+    - ceph-standalone
+
+- name: ceph object storage daemon
+  hosts: ceph-osd
+  gather_facts: true
+  become: true
+  roles:
+    - ceph-osd
+  tags:
+    - ceph-osd
+    - ceph
+    - ceph-standalone
+
+- name: ceph rados gateway daemon
+  hosts: ceph-rgw
+  gather_facts: false
+  become: true
+  roles:
+    - role: ceph-rgw
+      when: "'ceph-mon' in groups"
+  tags:
+    - ceph-rgw
+    - ceph
+    - ceph-standalone
+
+- name: ceph object storage
+  hosts: ceph-rgw[0]
+  gather_facts: false
+  become: true
+  roles:
+    - role: ceph-objectstorage
+      when: "'ceph-mon' in groups"
+  tags:
+    - ceph-objectstorage
+    - ceph
+    - ceph-standalone
+    - openshift-registry
+
+- name: openshift registry
+  hosts: openshift-master[0]
+  gather_facts: false
+  become: true
+  roles:
+    - openshift-registry
+  tags:
+    - openshift-registry
+    - openshift
+
+- name: openshift projects
+  hosts: openshift-master[0]
+  gather_facts: false
+  become: true
+  roles:
+    - openshift-projects
+  tags:
+    - openshift-projects
+    - openshift
+
+- name: ceph setup with openshift
+  hosts: openshift-master[0]
+  gather_facts: false
+  become: true
+  roles:
+    - role: ceph-openshift
+      when: "'ceph-mon' in groups"
+  tags:
+    - ceph-openshift
+    - ceph
+
+- name: influxdb metrics
+  hosts: openshift-master[0]
+  gather_facts: false
+  become: true
+  roles:
+    - influxdb-metrics
+  tags:
+    - influxdb-metrics
+    - openshift
+
+- name: influxdb telegraf
+  hosts: all
+  gather_facts: false
+  become: true
+  roles:
+    - influxdb-telegraf
+  tags:
+    - influxdb-telegraf
+    - openshift
+
+- name: openshift metrics
+  hosts: openshift-master[0]
+  gather_facts: false
+  become: true
+  roles:
+    - openshift-metrics
+  tags:
+    - openshift-metrics
+    - openshift
+
+#
+# - name: openshift logging
+#   hosts: openshift-master[0]
+#   gather_facts: false
+#   become: true
+#   roles:
+#     - openshift-logging
+#   tags:
+#     - openshift-logging
+
+- name: influxdb setup
+  hosts: openshift-node[0]
+  gather_facts: false
+  become: true
+  roles:
+    - influxdb-setup
+  tags:
+    - influxdb-setup
+    - openshift
+
+- name: golerta
+  hosts: openshift-master[0]
+  gather_facts: false
+  become: true
+  roles:
+    - golerta
+  tags:
+    - golerta
+    - openshift
+
+- name: kube-source
+  hosts: openshift-master[0]
+  gather_facts: false
+  become: true
+  roles:
+    - kube-source
+  tags:
+    - kube-source
+    - openshift
+
+- name: influxdb kapacitor
+  hosts: openshift-node[0]
+  gather_facts: false
+  become: true
+  roles:
+    - influxdb-kapacitor
+  tags:
+    - influxdb-kapacitor
+    - openshift
+
+- name: consul-notify
+  hosts: consul
+  gather_facts: false
+  become: true
+  roles:
+    - consul-notify
+  tags:
+    - consul-notify
+    - openshift
+
+- include: ceph-clusters-secret.yml
+  when: "'ceph-mon' in groups"
+
+- name: ceph openshift manager
+  hosts: openshift-master[0]
+  gather_facts: false
+  become: true
+  roles:
+    - role: ceph-openshift-manager
+      when: "'ceph-mon' in groups"
+  tags:
+    - ceph-openshift-manager
+    - ceph
+
+- name: ceph metrics
+  hosts: openshift-master[0]
+  gather_facts: false
+  become: true
+  roles:
+    - role: ceph-metrics
+      when: "'ceph-mon' in groups"
+  tags:
+    - ceph-metrics
+    - ceph

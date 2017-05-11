@@ -1,0 +1,71 @@
+- name: install unzip for consul install
+  yum: name=unzip
+
+- name: create consul directory structure
+  file: path={{item}} state=directory
+  with_items:
+    - /opt/consul/{{ consul_version }}/bin
+    - /opt/consul/data
+    - /opt/consul/{{ consul_version }}/dist
+    - /etc/consul/consul.d
+    - /var/log/consul
+
+- name: install consul
+  unarchive:
+    src: https://releases.hashicorp.com/consul/{{ consul_version }}/consul_{{ consul_version }}_linux_amd64.zip
+    dest: /opt/consul/{{ consul_version }}/bin/
+    copy: no
+    creates: /opt/consul/{{ consul_version }}/bin/consul
+
+- name: symlink consul {{ consul_version }} to /usr/local/bin/consul
+  file:
+    src: /opt/consul/{{ consul_version }}/bin/consul
+    dest: /usr/bin/consul
+    state: link
+  notify: restart consul
+
+- name: install consul web ui
+  unarchive:
+    src: https://releases.hashicorp.com/consul/{{ consul_version }}/consul_{{ consul_version }}_web_ui.zip
+    dest: /opt/consul/{{ consul_version }}/dist
+    copy: no
+    creates: /opt/consul/{{ consul_version }}/dist/index.html
+  notify: restart consul
+
+- name: consul config file
+  template:
+    src: consul.json.j2
+    dest: /etc/consul/consul.json
+    mode: 0755
+  notify: restart consul
+
+- name: download check_docker script
+  get_url:
+    url: https://github.com/newrelic/check_docker/releases/download/v2.3/check_docker-linux-2.3
+    dest: /usr/bin/check_docker
+    mode: 0755
+
+- name: install consul service file
+  template: src=consul.service dest=/usr/lib/systemd/system/consul.service
+  register: service
+
+- name: reload service files
+  shell: systemctl daemon-reload
+  when: service.changed
+  notify: restart consul
+
+- name: add per node consul checks
+  template: src=checks/{{item}}.json dest=/etc/consul/consul.d/{{item}}.json
+  register: consul_checks
+  when: 'item in groups and inventory_hostname in groups[item]'
+  notify: reload consul
+  with_items:
+    - etcd
+    - openshift-master
+    - openshift-node
+    - ceph-mon
+    - ceph-rgw
+
+- name: start and enable consul server
+  service: name=consul state=started enabled=yes
+  register: consul_started

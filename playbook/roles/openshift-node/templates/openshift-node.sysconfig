@@ -1,0 +1,2 @@
+OPTIONS="--loglevel={{ openshift_node_loglevel }}"
+CONFIG_FILE={{ openshift_node_config_path }}/node-config.yaml

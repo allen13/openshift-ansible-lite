@@ -1,0 +1,31 @@
+- name: create metrics accounts and permissions
+  oc_create:
+    manifest: "{{ lookup('template', 'metrics-deployer-setup.yaml') | from_yaml | to_nice_yaml }}"
+    project: openshift-infra
+
+- name: setup metrics permissions
+  command: >
+    {{ openshift_admin_binary }} {{item}}
+  with_items: "{{ openshift_metrics_policies }}"
+  register: permissions_task
+  failed_when: "permissions_task.rc != 0"
+  changed_when: false
+
+- name: setup metrics-deployer secrets
+  command: >
+    {{ openshift_client_binary }} -n openshift-infra secrets new metrics-deployer \
+      nothing=/dev/null \
+  register: secrets_task
+  failed_when: false
+  changed_when: "not secrets_task.stdout.find('already exists')"
+
+- name: setup metrics deployer template
+  template:
+    src: metrics-deployer-template.yaml
+    dest: /etc/origin/metrics-deployer-template.yaml
+
+- name: create metrics deployer template
+  command: oc create -f /etc/origin/metrics-deployer-template.yaml -n openshift-infra
+  register: metrics_template
+  failed_when: false
+  changed_when: "not metrics_template.stdout.find('already exists')"

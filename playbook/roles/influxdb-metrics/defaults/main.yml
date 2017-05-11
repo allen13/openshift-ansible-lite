@@ -1,0 +1,5 @@
+influxdb_volume:
+  emptyDir: {}
+
+influxdb_volume_yamlized: "{{ influxdb_volume|to_yaml }}"
+influxdb_service_external_ips: "{{ groups['openshift-node']|map('extract', hostvars,'private_ip')|list }}"

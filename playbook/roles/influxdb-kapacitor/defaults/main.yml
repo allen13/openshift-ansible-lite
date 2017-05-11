@@ -1,0 +1,4 @@
+kapacitor_volume:
+  emptyDir: {}
+
+kapacitor_volume_yamlized: "{{ kapacitor_volume|to_yaml }}"

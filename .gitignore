@@ -1,0 +1,15 @@
+.idea
+.vagrant
+.bundle
+*.vdi
+*.pyc
+**/.*.swp
+**/.*.swo
+.env/
+ssl/
+site.retry
+mds.keyring
+osd.keyring
+rgw.keyring
+*.retry
+playbook/files/tinc

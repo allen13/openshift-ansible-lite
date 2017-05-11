@@ -1,0 +1,16 @@
+- name: create the master certificates
+  command: >
+    {{ openshift_admin_binary }} ca create-master-certs
+      --hostnames={{ openshift_master_certificate_hostnames | join(',') }}
+      --master={{ openshift_master_api_url }}
+      --public-master={{ openshift_master_public_url }}
+      --cert-dir={{ openshift_master_config_path }}
+  args:
+    creates: "{{ openshift_master_config_path }}/master.server.crt"
+
+- name: transfer certs locally
+  fetch:
+    src: "{{ openshift_master_config_path }}/{{ item.file }}"
+    dest: "files/{{ openshift_cluster }}/{{ item.file }}"
+    flat: true
+  with_items: "{{ openshift_master_files }}"

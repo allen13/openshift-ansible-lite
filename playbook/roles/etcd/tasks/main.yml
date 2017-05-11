@@ -1,0 +1,16 @@
+- name: install etcd
+  yum: name=etcd state=latest
+  notify: restart etcd
+
+- name: install etcd config
+  template:
+    src: etcd.conf
+    dest: /etc/etcd/etcd.conf
+  notify: restart etcd
+
+- name: start and enable etcd
+  service:
+    name: etcd
+    state: started
+    enabled: yes
+  register: etcd_started

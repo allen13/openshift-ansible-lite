@@ -1,0 +1,4 @@
+- name: deploy ceph metrics
+  oc_create:
+    manifest: "{{ lookup('template', 'ceph-metrics.yml') }}"
+    project: metrics

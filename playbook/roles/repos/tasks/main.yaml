@@ -1,0 +1,22 @@
+- name: add repo files
+  template:
+    src: "{{ item }}"
+    dest: /etc/yum.repos.d/{{ item }}
+  notify: refresh cache
+  with_items:
+    - ceph.repo
+    - influxdb.repo
+
+- name: install additional repos
+  yum: name="{{ item }}"
+  with_items:
+    - epel-release
+    - centos-release-openshift-origin
+
+- name: install yum versionlock plugin
+  yum: name=yum-plugin-versionlock
+
+- name: versionlock packages
+  template:
+    src: versionlock.list
+    dest: /etc/yum/pluginconf.d/versionlock.list

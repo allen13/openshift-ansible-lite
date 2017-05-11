@@ -1,0 +1,10 @@
+golerta_service_external_ips: "{{ groups['openshift-node']|map('extract', hostvars,'private_ip')|list }}"
+
+golerta_registry_certificate_base_hostnames:
+  - "{{ golerta_service_ip }}"
+  - golerta
+  - golerta.service.os
+  - golerta-metrics.apps.{{ openshift_external_dns_domain }}
+  - golerta.metrics.svc.{{ openshift_dns_domain }}
+
+golerta_registry_certificate_hostnames: "{{ golerta_service_external_ips + golerta_registry_certificate_base_hostnames }}"

@@ -1,0 +1,13 @@
+{
+  "service": {
+    "name": "ceph-rgw-v1-{{ openshift_dc }}",
+    "address": "{{ private_ip }}",
+    "port": 8080,
+    "checks": [
+      {
+        "tcp": "{{ private_ip }}:8080",
+        "interval": "10s"
+      }
+    ]
+  }
+}

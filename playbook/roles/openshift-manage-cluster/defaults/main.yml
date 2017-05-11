@@ -1,0 +1,3 @@
+openshift_setup_permissions:
+  - policy add-cluster-role-to-user cluster-admin admin
+  - policy add-scc-to-user hostnetwork -z router

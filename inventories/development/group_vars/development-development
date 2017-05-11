@@ -1,0 +1,23 @@
+openshift_cluster: development
+openshift_env: development
+openshift_dc: development
+openshift_primary_dc: development
+
+
+ceph_public_network: 192.0.2.0/25
+ceph_osd_pool_default_size: 2
+
+openshift_cluster_subnet: 198.18.0.0/15
+openshift_service_subnet: 192.168.0.0/16
+extra_white_listed_subnets:
+  - label: cluster-subnet
+    value: "{{ openshift_cluster_subnet }}"
+  - label: service-subnet
+    value: "{{ openshift_service_subnet }}"
+
+sshd_listen_addresses:
+  - 0.0.0.0
+
+external_dns_servers:
+  - 172.18.18.20
+  - 172.18.82.20

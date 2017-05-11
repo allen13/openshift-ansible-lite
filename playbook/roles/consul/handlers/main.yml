@@ -1,0 +1,7 @@
+- name: restart consul
+  service: name=consul state=restarted
+  when: not consul_started.changed
+
+- name: reload consul
+  command: consul reload
+  when: not consul_started.changed

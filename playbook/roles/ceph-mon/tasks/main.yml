@@ -1,0 +1,50 @@
+- name: install lsb_release
+  yum: name=redhat-lsb-core
+
+- name: create ceph monitor initial keyring
+  command: ceph-authtool {{ ceph_tmp_path }}/ceph.mon.keyring --create-keyring --name=mon. --add-key={{ ceph_monitor_secret }} --cap mon 'allow *'
+  become_user: ceph
+  args:
+    creates: "{{ ceph_tmp_path }}/ceph.mon.keyring"
+  register: created_ceph_monitor_keyring
+
+- name: add ceph client.admin keyring to monitor keyring
+  command: ceph-authtool {{ ceph_tmp_path }}/ceph.mon.keyring --import-keyring {{ ceph_admin_keyring_file }}
+  become_user: ceph
+  when: created_ceph_monitor_keyring.changed
+
+- name: create ceph monitor filesystem store
+  command: ceph-mon --cluster {{ ceph_cluster_name }} --setuser ceph --setgroup ceph --mkfs -i {{ inventory_hostname }} --fsid {{ ceph_fsid }} --keyring {{ ceph_tmp_path }}/ceph.mon.keyring
+  become_user: ceph
+  args:
+    creates: "{{ ceph_data_location }}/mon/{{ ceph_cluster_name }}-{{ inventory_hostname }}/keyring"
+
+- name: link ceph monitor systemd file
+  file:
+    src: /usr/lib/systemd/system/ceph-mon@.service
+    dest: /etc/systemd/system/multi-user.target.wants/ceph-mon@{{ inventory_hostname }}.service
+    state: link
+
+- name: start and enable ceph monitor
+  service:
+    name: ceph-mon@{{ inventory_hostname }}
+    state: started
+    enabled: yes
+
+- name: wait for bootstrap key
+  wait_for:
+    path: "{{ ceph_data_location }}/bootstrap-osd/ceph.keyring"
+    state: present
+  run_once: true
+
+- name: fetch bootstrap keys
+  fetch:
+    src: "{{ ceph_data_location }}/bootstrap-{{ item }}/ceph.keyring"
+    dest: "files/ceph/{{ openshift_cluster }}/{{ item }}.keyring"
+    flat: true
+    fail_on_missing: true
+  run_once: true
+  with_items:
+    - osd
+    - rgw
+    - mds

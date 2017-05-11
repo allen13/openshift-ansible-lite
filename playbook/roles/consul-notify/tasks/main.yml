@@ -1,0 +1,39 @@
+- name: create consul-notify directory structure
+  file: path={{item}} state=directory
+  with_items:
+    - /opt/consul-notify/{{ consul_notify_version }}/bin
+    - /etc/consul-notify/
+    - /var/log/consul-notify/
+
+- name: install consul-notify
+  unarchive:
+    src: https://github.com/allen13/consul-notify/releases/download/v{{ consul_notify_version }}/consul-notify_{{ consul_notify_version }}_linux_amd64.tar.gz
+    dest: /opt/consul-notify/{{ consul_notify_version }}/bin/
+    copy: no
+
+- name: symlink consul-notify {{ consul_notify_version }} to /usr/local/bin/consul-notify
+  file:
+    src: /opt/consul-notify/{{ consul_notify_version }}/bin/consul-notify
+    dest: /usr/local/bin/consul-notify
+    state: link
+  notify: restart consul-notify
+
+- name: consul-notify config file
+  template:
+    src: consul-notify.conf
+    dest: /etc/consul-notify/consul-notify.conf
+    mode: 0755
+  notify: restart consul-notify
+
+- name: install consul-notify service file
+  template: src=consul-notify.service dest=/usr/lib/systemd/system/consul-notify.service
+  register: service
+
+- name: reload service files
+  shell: systemctl daemon-reload
+  when: service.changed
+  notify: restart consul-notify
+
+- name: start and enable consul-notify server
+  service: name=consul-notify state=started enabled=yes
+  register: consul_notify_started

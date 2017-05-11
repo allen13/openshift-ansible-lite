@@ -1,0 +1,26 @@
+- name: deploy kapacitor manifest
+  oc_create:
+    manifest: "{{ lookup('template', 'kapacitor.yml') }}"
+    project: metrics
+
+- name: install kapacitor for client binary
+  yum: name=kapacitor state=latest
+
+- name: create ticks folder
+  file: path=/etc/kapacitor/ticks state=directory
+
+- name: setup tick scripts
+  copy: src=ticks/{{ item.name }}.tick dest=/etc/kapacitor/ticks
+  with_items: "{{ kapacitor_ticks }}"
+
+- name: wait for kapacitor to be started
+  wait_for: host={{ kapacitor_service_ip }} port=9092
+
+- name: setup kapacitor tasks
+  kapacitor_task:
+    name: cpu_alert
+    type: stream
+    tick: /etc/kapacitor/ticks/{{ item.name }}.tick
+    dbrp: "{{ influxdb_metrics_db }}.{{ influxdb_default_retention_policy }}"
+    url: "{{ kapacitor_url }}"
+  with_items: "{{ kapacitor_ticks }}"

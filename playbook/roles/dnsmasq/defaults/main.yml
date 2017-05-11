@@ -1,0 +1,10 @@
+openshift_dns_servers: "{{ groups['openshift-master']|map('extract', hostvars,'private_ip')|list|map('map_format','/cluster.local/%s#5353')|list }}"
+dnsmasq_name_servers: "{{ ['/os/127.0.0.1#8600'] + openshift_dns_servers + external_dns_servers }}"
+
+dns_resolv_nameservers:
+  - "{{ private_ip }}"
+
+dns_search_domains:
+  - node.os
+
+dnsmasq_hosts: []

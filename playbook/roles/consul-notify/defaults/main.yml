@@ -1,0 +1,3 @@
+consul_notify_version: 1.0.3
+consul_gather_interval: 5s
+consul_gather_timeout: 60s

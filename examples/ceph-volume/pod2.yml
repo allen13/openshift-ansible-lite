@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mysql-test2
+spec:
+  containers:
+  - name: mysql-test2
+    image: mysql
+    volumeMounts:
+    - name: ceph-vol1
+      mountPath: /var/lib/mysql
+      readOnly: false
+    env:
+    - name: MYSQL_ROOT_PASSWORD
+      value: password
+  volumes:
+  - name: ceph-vol1
+    rbd:
+      monitors:
+        - "ceph-mon-dev-dal10.service.os:6789"
+      pool: rbd
+      image: test
+      user: admin
+      secretRef:
+        name: "ceph-admin-keyring-secret"
+      fsType: xfs
+      readOnly: false

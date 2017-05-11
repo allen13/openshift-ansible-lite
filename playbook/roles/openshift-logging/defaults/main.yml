@@ -1,0 +1,22 @@
+openshift_logging_project: logging
+
+openshift_logging_project_manifest:
+  apiVersion: v1
+  kind: Project
+  metadata:
+    name: "{{ openshift_logging_project }}"
+
+openshift_logging_deployer_service_acccout:
+  apiVersion: v1
+  kind: ServiceAccount
+  metadata:
+    name: logging-deployer
+  secrets:
+  - name: logging-deployer
+
+openshift_logging_policies:
+  - policy add-role-to-user edit system:serviceaccount:{{ openshift_logging_project }}:logging-deployer -n {{ openshift_logging_project }}
+  - policy add-scc-to-user privileged system:serviceaccount:logging:aggregated-logging-fluentd -n {{ openshift_logging_project }}
+  - policy add-cluster-role-to-user cluster-reader system:serviceaccount:logging:aggregated-logging-fluentd -n {{ openshift_logging_project }}
+
+openshift_logging_elasticsearch_ram: 512MB

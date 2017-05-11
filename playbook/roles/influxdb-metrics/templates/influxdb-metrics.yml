@@ -1,0 +1,239 @@
+apiVersion: v1
+kind: List
+items:
+
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: influxdb
+    namespace: metrics
+    labels:
+      app: influxdb
+  spec:
+    ports:
+      -
+        name: 8083-tcp
+        protocol: TCP
+        port: 8083
+        targetPort: 8083
+      -
+        name: 8086-tcp
+        protocol: TCP
+        port: 8086
+        targetPort: 8086
+    selector:
+      app: influxdb
+    portalIP: {{ influxdb_service_ip }}
+    clusterIP: {{ influxdb_service_ip }}
+    type: ClusterIP
+    sessionAffinity: None
+
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    name: influxdb
+    namespace: metrics
+    labels:
+      app: influxdb
+  spec:
+    strategy:
+      type: Recreate
+      resources: {  }
+    triggers:
+      -
+        type: ConfigChange
+    replicas: 1
+    selector:
+      app: influxdb
+    template:
+      metadata:
+        labels:
+          app: influxdb
+      spec:
+        volumes:
+          -
+            name: influxdb-data
+{% for line in influxdb_volume_yamlized.splitlines() %}
+            {{ line }}
+{% endfor %}
+        containers:
+          -
+            name: influxdb
+            image: influxdb:alpine
+            env:
+              - name: INFLUXDB_ADMIN_ENABLED
+                value: 'true'
+            ports:
+              -
+                containerPort: 8083
+                protocol: TCP
+              -
+                containerPort: 8086
+                protocol: TCP
+            resources: {  }
+            volumeMounts:
+              -
+                name: influxdb-data
+                mountPath: /var/lib/influxdb
+            imagePullPolicy: IfNotPresent
+        nodeSelector:
+          dc: {{ openshift_dc }}
+        restartPolicy: Always
+        terminationGracePeriodSeconds: 30
+        dnsPolicy: ClusterFirst
+        securityContext: {  }
+
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: grafana
+    namespace: metrics
+    labels:
+      app: grafana
+  spec:
+    ports:
+      -
+        name: 3000-tcp
+        protocol: TCP
+        port: 3000
+        targetPort: 3000
+    selector:
+      app: grafana
+      deploymentconfig: grafana
+    type: ClusterIP
+    sessionAffinity: None
+
+- apiVersion: v1
+  kind: Route
+  metadata:
+    labels:
+      app: grafana
+    name: grafana
+    namespace: metrics
+  spec:
+    port:
+      targetPort: 3000-tcp
+    to:
+      kind: Service
+      name: grafana
+
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    name: grafana
+    namespace: metrics
+    labels:
+      app: grafana
+  spec:
+    strategy:
+      type: Recreate
+    triggers:
+      - type: ConfigChange
+    replicas: 1
+    test: false
+    selector:
+      app: grafana
+      deploymentconfig: grafana
+    template:
+      metadata:
+        labels:
+          app: grafana
+          deploymentconfig: grafana
+      spec:
+        volumes:
+          -
+            name: grafana-data
+            emptyDir: {}
+        containers:
+          -
+            name: grafana
+            image: grafana/grafana:latest
+            ports:
+              -
+                containerPort: 3000
+                protocol: TCP
+            env:
+              -
+                name: GF_SERVER_ROOT_URL
+                value: {{ grafana_server_root_url }}
+              -
+                name: GF_SECURITY_ADMIN_PASSWORD
+                value: {{ grafana_admin_password }}
+            resources: {  }
+            volumeMounts:
+              -
+                name: grafana-data
+                mountPath: /var/lib/grafana
+            terminationMessagePath: /dev/termination-log
+            imagePullPolicy: Always
+        restartPolicy: Always
+        terminationGracePeriodSeconds: 30
+        dnsPolicy: ClusterFirst
+        nodeSelector:
+          dc: {{ openshift_dc }}
+
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: influxdb-relay
+    namespace: metrics
+    labels:
+      app: influxdb-relay
+  spec:
+    ports:
+      -
+        name: 8086-tcp
+        protocol: TCP
+        port: 8086
+        targetPort: 8086
+    selector:
+      app: influxdb-relay
+    type: ClusterIP
+    sessionAffinity: None
+    externalIPs:
+{% for line in influxdb_service_external_ips %}
+      - {{ line }}
+{% endfor %}
+
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    name: influxdb-relay
+    namespace: metrics
+    labels:
+      app: influxdb-relay
+  spec:
+    strategy:
+      type: Rolling
+      rollingParams:
+        updatePeriodSeconds: 1
+        intervalSeconds: 1
+        timeoutSeconds: 600
+        maxUnavailable: 25%
+        maxSurge: 25%
+      resources:
+    triggers:
+      - type: ConfigChange
+    replicas: 2
+    test: false
+    selector:
+      app: influxdb-relay
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          app: influxdb-relay
+      spec:
+        containers:
+          -
+            name: influxdb-relay
+            image: allen13/influxdb-relay:latest
+            ports:
+              -
+                containerPort: 8086
+                protocol: TCP
+            terminationMessagePath: /dev/termination-log
+            imagePullPolicy: Always
+        restartPolicy: Always
+        terminationGracePeriodSeconds: 30
+        dnsPolicy: ClusterFirst

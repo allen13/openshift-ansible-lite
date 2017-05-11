@@ -1,0 +1,39 @@
+- name: grab ceph admin keyring
+  command: "ceph auth get-key client.admin"
+  changed_when: false
+  register: ceph_admin_keyring
+
+- name: create ceph secret for openshift-node
+  oc_create:
+    manifest: "{{ lookup('template', 'ceph-secret.yml') }}"
+    project: "{{ item.project }}"
+  with_items: "{{ ceph_openshift_volumes }}"
+
+- name: ensure secret directory exists
+  file:
+    path: /etc/ceph/secret
+    owner: root
+    group: root
+    state: directory
+
+- name: create ceph secret yaml on disk for future use
+  template:
+    src: ceph-secret.yml
+    dest: /etc/ceph/secret/ceph-secret.yml
+
+- name: get ceph pool rbd volumes
+  command: rbd ls -p {{ ceph_block_device_pool }}
+  register: ceph_pool_rbd_volumes
+  changed_when: false
+
+- name: create ceph rbd volumes
+  command: rbd create --size {{ item.size_in_GB * 1024 }} {{ ceph_block_device_pool }}/{{ item.name }}
+  when: item.name not in ceph_pool_rbd_volumes.stdout_lines
+  with_items:
+    - "{{ ceph_openshift_volumes }}"
+
+- name: create openshift persistent claims and volumes
+  oc_create:
+    manifest: "{{ lookup('template', 'volume.yml') }}"
+    project: "{{ item.project }}"
+  with_items: "{{ ceph_openshift_volumes }}"

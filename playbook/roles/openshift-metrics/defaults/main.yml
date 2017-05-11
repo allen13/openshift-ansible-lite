@@ -1,0 +1,3 @@
+openshift_metrics_policies:
+  - policy add-role-to-user edit system:serviceaccount:openshift-infra:metrics-deployer -n openshift-infra
+  - policy add-cluster-role-to-user cluster-reader system:serviceaccount:openshift-infra:heapster -n openshift-infra

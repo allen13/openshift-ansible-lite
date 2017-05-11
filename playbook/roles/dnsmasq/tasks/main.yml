@@ -1,0 +1,41 @@
+- name: install dnsmasq
+  yum: name=dnsmasq
+
+- name: create dnsmasq drop-in directory
+  file: path=/etc/systemd/system/dnsmasq.service.d state=directory
+
+- name: add systemd drop in for dnsmasq
+  template: src=dnsmasq.service.conf dest=/etc/systemd/system/dnsmasq.service.d/dnsmasq.conf
+  register: dnsmasq_dropin
+  notify: restart dnsmasq
+
+- name: reload service files
+  command: systemctl daemon-reload
+  when: dnsmasq_dropin.changed
+
+- name: configure dnsmasq
+  template: src=dnsmasq.conf dest=/etc/dnsmasq.conf
+  notify: restart dnsmasq
+
+- name: setup hosts file for dnsmasq
+  template: src=hosts.conf dest=/etc/dnsmasq.d/hosts.conf mode=0644
+  notify: restart dnsmasq
+
+- name: start and enable dnsmasq
+  service: name=dnsmasq state=started enabled=yes
+
+- name: get resolv.conf attributes
+  shell: lsattr /etc/resolv.conf
+  register: resolv_attr_before
+  changed_when: False
+
+- name: update resolv.conf to work with dnsmasq
+  template:
+    src: resolv.conf
+    dest: /etc/resolv.conf
+    validate: chattr -i /etc/resolv.conf %s
+  register: resolv_attr
+
+- name: lock resolv.conf with immutable flag
+  command: chattr +i /etc/resolv.conf
+  when: resolv_attr.changed or resolv_attr_before.stdout.find('i') == -1

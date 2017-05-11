@@ -1,0 +1,7 @@
+consul_version: 0.7.1
+consul_domain: os.
+consul_log_level: "ERR"
+
+consul_server_group: "{{ groups['consul'] }}"
+consul_start_join: "{{ consul_server_group|map('extract',hostvars,'private_ip')|list|to_json }}"
+consul_datacenter: "{{ openshift_cluster }}"

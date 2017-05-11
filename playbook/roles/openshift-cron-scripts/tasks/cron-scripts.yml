@@ -1,0 +1,15 @@
+- name: ensure root bin folder exists
+  file:
+    path: /root/bin
+    state: directory
+    owner: root
+    group: root
+
+- name: install kubernetes-firewall-lockdown script
+  copy:
+    src: kubernetes-firewall-lockdown.sh
+    dest: /root/bin/kubernetes-firewall-lockdown.sh
+    mode: 0755
+    owner: root
+    group: root
+

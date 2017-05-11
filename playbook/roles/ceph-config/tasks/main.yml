@@ -1,0 +1,42 @@
+- name: install ceph
+  yum: name=ceph-{{ ceph_version }}
+
+- name: install ceph config
+  template:
+    src: ceph.conf
+    dest: /etc/ceph/ceph.conf
+    mode: 0644
+
+  register: ceph_config
+
+- name: install ceph admin keyring
+  template:
+    src: "{{ ceph_admin_keyring_file | basename }}"
+    dest: "{{ ceph_admin_keyring_file }}"
+    mode: 0644
+
+- name: get osd ids
+  shell: "ls {{ ceph_data_location }}/osd/ |grep -oh '[0-9]*'"
+  changed_when: false
+  failed_when: false
+  register: osd_ids
+
+- name: check if ceph-mon is installed
+  stat:
+    path: /etc/systemd/system/multi-user.target.wants/ceph-mon@{{ inventory_hostname }}.service
+  register: ceph_mon_service_file
+
+- name: check if ceph-rgw is installed
+  stat:
+    path: /etc/systemd/system/multi-user.target.wants/ceph-radosgw@rgw.{{ inventory_hostname }}.service
+  register: ceph_rgw_service_file
+
+- include: restart-ceph.yml
+  when:
+    (('ceph-mon' in group_names) or
+     ('ceph-rgw' in group_names) or
+     ('ceph-osd' in group_names)) and
+    (ceph_config.changed) and
+    ((osd_ids.stdout_lines|length > 0) or
+     (ceph_mon_service_file.stat.islnk is defined) or
+     (ceph_rgw_service_file.stat.islnk is defined))

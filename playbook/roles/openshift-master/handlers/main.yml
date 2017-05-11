@@ -1,0 +1,7 @@
+- name: restart openshift-master-api
+  service: name=openshift-master-api state=restarted
+  when: not (api_started.changed | default(false) | bool)
+
+- name: restart openshift-master-controllers
+  service: name=openshift-master-controllers state=restarted
+  when: not (controller_started.changed | default(false) | bool)

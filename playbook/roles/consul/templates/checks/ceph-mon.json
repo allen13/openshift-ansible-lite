@@ -1,0 +1,13 @@
+{
+  "service": {
+    "name": "ceph-mon-{{ openshift_env }}-{{ openshift_dc }}",
+    "address": "{{ private_ip }}",
+    "port": 6789,
+    "checks": [
+      {
+        "tcp": "{{ private_ip }}:6789",
+        "interval": "10s"
+      }
+    ]
+  }
+}

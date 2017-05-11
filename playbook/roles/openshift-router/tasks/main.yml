@@ -1,0 +1,26 @@
+- name: create openshift router certs
+  command: >
+    {{ openshift_admin_binary }} ca create-server-cert
+    --hostnames={{ openshift_registry_certificate_hostnames | join(',') }}
+    --signer-cert={{ openshift_master_config_path }}/ca.crt
+    --signer-key={{ openshift_master_config_path }}/ca.key
+    --signer-serial={{ openshift_master_config_path }}/ca.serial.txt
+    --cert={{ openshift_master_config_path }}/router.crt
+    --key={{ openshift_master_config_path }}/router.key
+  args:
+    creates: "{{ openshift_master_config_path }}/router.crt"
+
+- name: create router secret
+  command: >
+    {{ openshift_client_binary }} secrets new router-certs
+    registry.crt={{ openshift_master_config_path }}/router.crt
+    registry.key={{ openshift_master_config_path }}/router.key
+  register: secrets_task
+  failed_when: false
+  changed_when: "not secrets_task.stdout.find('already exists')"
+
+- name: deploy openshift router
+  command: >
+    {{ openshift_admin_binary }} router -n default --selector='kubernetes.io/hostname={{ openshift_router_host }}'
+  register: openshift_router_results
+  changed_when: "'service exists' not in openshift_router_results.stdout"

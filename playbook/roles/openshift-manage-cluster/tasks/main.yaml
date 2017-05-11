@@ -1,0 +1,7 @@
+- name: setup openshift permissions
+  command: >
+    {{ openshift_admin_binary }} {{item}}
+  with_items: "{{ openshift_setup_permissions }}"
+  register: permissions_task
+  failed_when: "permissions_task.rc != 0"
+  changed_when: false

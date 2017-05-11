@@ -1,0 +1,9 @@
+version_locked_packages:
+  - 0:etcd-3.1.0-2.el7.*
+  - 0:origin-{{ openshift_origin_version }}-1.el7.*
+  - 0:origin-node-{{ openshift_origin_version }}-1.el7.*
+  - 0:origin-sdn-ovs-{{ openshift_origin_version }}-1.el7.*
+  - 2:docker-1.12.6-11.el7.centos.*
+  - 1:ceph-{{ ceph_version }}-0.el7.*
+
+ceph_rpm_version: infernalis

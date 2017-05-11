@@ -1,0 +1,113 @@
+openshift_origin_version: 1.4.1
+openshift_env_dc: "{{ openshift_env }}-{{ openshift_dc }}"
+openshift_master_api_url: https://openshift.service.os:8443
+openshift_master_public_url: https://{{ hostvars[groups['openshift-master'][0]]['public_ip'] }}:8443
+openshift_external_dns_domain: "{{ hostvars[groups['openshift-node'][0]]['public_ip'] }}.xip.io"
+
+openshift_binary_path: /bin/
+openshift_binary: "{{ openshift_binary_path }}/openshift"
+openshift_admin_binary: "{{ openshift_binary_path }}/oadm"
+openshift_client_binary: "{{ openshift_binary_path }}/oc"
+openshift_kubectl_binary: "{{ openshift_binary_path }}/kubectl"
+
+openshift_master_config_path: /etc/origin/master
+openshift_node_config_path: /etc/origin/node
+openshift_pod_manifest_path: /etc/origin/node/manifests
+
+openshift_network_plugin: redhat/openshift-ovs-multitenant
+
+openshift_cluster_subnet: 198.18.0.0/15
+# The cluster subnet length is the number of host bits a doker tanker will have on each node
+# 8 bits with a cluster subenet of 198.18.0.0/15 would result in a
+# docker bridge subnet of 198.18.x.0/24 meaning you can only schedule 254 containers on a single node
+openshift_cluster_subnet_length: 8
+openshift_cluster_subnet_first_two_octets: '198.18'
+
+openshift_service_subnet: 192.168.0.0/16
+openshift_kubernetes_service_ip: 192.168.0.1
+
+openshift_registry_service_ip: 192.168.0.121
+openshift_registry_external_hostname: docker-registry.{{ openshift_external_dns_domain }}
+openshift_registry_certificate_hostnames:
+  - "{{ openshift_registry_service_ip }}"
+  - "{{ openshift_registry_external_hostname }}"
+  - docker-registry.default.svc.{{ openshift_dns_domain }}
+
+openshift_dns_domain: cluster.local
+openshift_kubernetes_cluster_hostname: kubernetes.default.svc.{{ openshift_dns_domain }}
+
+openshift_metrics_hostname: hawkular-metrics.{{ openshift_external_dns_domain }}
+openshift_metrics_public_url: https://{{ openshift_metrics_hostname }}/hawkular/metrics
+
+openshift_kibana_hostname: kibana.{{ openshift_external_dns_domain }}
+
+openshift_ceph_rgw_endpoint: ceph-rgw-v1-{{ openshift_primary_dc }}.service.os
+openshift_docker_registry_endpoint: "{{ openshift_ceph_rgw_endpoint }}"
+
+openshift_master_private_ips: "{{ groups['openshift-master']|map('extract',hostvars,'private_ip')|list }}"
+openshift_master_public_ips: "{{ groups['openshift-master']|map('extract',hostvars,'public_ip')|list }}"
+openshift_master_default_hostnames:
+  - "{{ openshift_kubernetes_service_ip }}"
+  - "{{ openshift_kubernetes_cluster_hostname }}"
+  - kubernetes.default.svc
+  - openshift.default.svc.{{ openshift_dns_domain }}
+  - openshift.default.svc
+  - openshift.service.os
+  - 127.0.0.1
+  - localhost
+
+openshift_master_certificate_hostnames: "{{ openshift_master_default_hostnames }}"
+
+openshift_master_files:
+  - file: admin.crt
+    mode: '0644'
+  - file: admin.key
+    mode: '0600'
+  - file: admin.kubeconfig
+    mode: '0600'
+  - file: etcd.server.crt
+    mode: '0644'
+  - file: etcd.server.key
+    mode: '0600'
+  - file: master.etcd-client.crt
+    mode: '0644'
+  - file: master.etcd-client.key
+    mode: '0600'
+  - file: master.kubelet-client.crt
+    mode: '0644'
+  - file: master.kubelet-client.key
+    mode: '0600'
+  - file: master.proxy-client.crt
+    mode: '0644'
+  - file: master.proxy-client.key
+    mode: '0600'
+  - file: master.server.crt
+    mode: '0644'
+  - file: master.server.key
+    mode: '0600'
+  - file: openshift-master.crt
+    mode: '0644'
+  - file: openshift-master.key
+    mode: '0600'
+  - file: openshift-master.kubeconfig
+    mode: '0600'
+  - file: openshift-registry.crt
+    mode: '0644'
+  - file: openshift-registry.key
+    mode: '0600'
+  - file: openshift-registry.kubeconfig
+    mode: '0600'
+  - file: openshift-router.crt
+    mode: '0644'
+  - file: openshift-router.key
+    mode: '0600'
+  - file: openshift-router.kubeconfig
+    mode: '0600'
+  - file: serviceaccounts.private.key
+    mode: '0600'
+  - file: serviceaccounts.public.key
+    mode: '0600'
+  - file: service-signer.crt
+    mode: '0644'
+  - file: service-signer.key
+    mode: '0600'

@@ -1,0 +1,9 @@
+#!/bin/sh
+ip address del {{ vpn_ip }}/{{ vpn_netmask }} dev {{ vpn_interface }}
+ip link set {{ vpn_interface }} down
+{% for ip in vpn_connection_private_ips %}
+ip route del {{ ip }}/32 dev {{ vpn_interface }}
+{% endfor %}
+{% for route in vpn_connection_extra_routes %}
+ip route del {{ route }} dev {{ vpn_interface }}
+{% endfor %}

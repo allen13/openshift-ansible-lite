@@ -1,0 +1,21 @@
+- name: upgrade cluster
+  hosts: all
+  become: true
+  gather_facts: false
+  serial: 1
+  tasks:
+    - name: upgrade all packages
+      command: yum upgrade
+      register: yum_upgrade
+      changed_when: not yum_upgrade.stdout.find('No packages marked for update')
+
+    - name: restart host
+      shell: sleep 2 && shutdown -r now "Ansible updates triggered"
+      async: 1
+      poll: 0
+      ignore_errors: true
+      when: not yum_upgrade.stdout.find('No packages marked for update')
+
+    - name: wait for host to come back up
+      local_action: wait_for port=22 host="{{ ansible_ssh_host }}" timeout=400 delay=30
+      become: false

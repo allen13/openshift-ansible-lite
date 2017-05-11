@@ -1,0 +1,5 @@
+openshift_node_volume_path: /var/lib/origin/volumes
+openshift_node_loglevel: 0
+openshift_node_labels:
+  - dc={{ openshift_dc }}
+  - env={{ openshift_env }}

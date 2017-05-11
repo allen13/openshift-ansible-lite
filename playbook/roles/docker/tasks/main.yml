@@ -1,0 +1,11 @@
+- name: install docker
+  yum: name=docker state=latest
+
+- name: setup docker sysconfig
+  template: src=docker.sysconfig dest=/etc/sysconfig/docker
+
+- name: add docker group
+  group: name=docker state=present
+
+- name: start and enable docker
+  service: name=docker state=started enabled=yes

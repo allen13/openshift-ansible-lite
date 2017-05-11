@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: startup-test
+  namespace: default
+spec:
+  containers:
+  - image: alpine
+    command:
+      - sleep
+      - "300"
+    imagePullPolicy: IfNotPresent
+    name: alpine
+  restartPolicy: Never

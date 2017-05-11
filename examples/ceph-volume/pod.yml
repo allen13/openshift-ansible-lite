@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mysql-test
+spec:
+  containers:
+  - name: mysql-test
+    image: mysql
+    volumeMounts:
+    - name: ceph-vol1
+      mountPath: /var/lib/mysql
+      readOnly: false
+    env:
+    - name: MYSQL_ROOT_PASSWORD
+      value: password
+  volumes:
+  - name: ceph-vol1
+    persistentVolumeClaim:
+      claimName: ceph-1g-0000

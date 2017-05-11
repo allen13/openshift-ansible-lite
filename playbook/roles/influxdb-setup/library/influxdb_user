@@ -1,0 +1,153 @@
+#!/usr/bin/python
+
+DOCUMENTATION = '''
+---
+module: influxdb_user
+short_description: Adds or removes a user from an InfluxDB database.
+description:
+   - Adds or removes a user from a InfluxDB database.
+options:
+  name:
+    description:
+      - name of the user (role) to add or remove
+    required: true
+  password:
+    description:
+      - set the user's password
+    required: false
+    default: null
+  login_user:
+    description:
+      - The username used to authenticate with
+    required: false
+    default: null
+  login_password:
+    description:
+      - The password used to authenticate with
+    required: false
+    default: null
+  login_host:
+    description:
+      - Host running the database
+    required: false
+    default: localhost
+  login_port:
+    description:
+      - Host port running the database
+    required: false
+    default: 8086
+  database:
+    description:
+      - Give permissions to this database and create it if it doesn't exist
+    required: false
+    default: null
+  privilege:
+    description:
+      - Level of permissions to grant
+    required: false
+    default: 'ALL'
+    choices: [ 'ALL', 'READ', 'WRITE' ]
+
+notes:
+   - Requires the influxdb Python package on the remote host: pip install influxdb
+
+requirements: [ 'influxdb' ]
+author: 'Timothy Allen (@allen13)'
+'''
+
+EXAMPLES = """
+# Create admin user
+- influxdb_user: login_host=localhost login_user=admin login_password=admin user=admin password=admin privilege=ALL
+"""
+
+try:
+    from influxdb import InfluxDBClient
+    from influxdb.exceptions import InfluxDBClientError
+except ImportError:
+    influxdb_found = False
+else:
+    influxdb_found = True
+
+
+class InfluxdbUser:
+
+    def __init__(self, module):
+        self.module = module
+        self.login_user = module.params['login_user']
+        self.login_password = module.params['login_password']
+        self.login_host = module.params['login_host']
+        self.login_port = module.params['login_port']
+        self.user = module.params['user']
+        self.password = module.params['password']
+        self.privilege = module.params['privilege']
+        self.database = module.params['database']
+
+        self.client = InfluxDBClient(self.login_host, self.login_port, self.login_user, self.login_password)
+
+    def is_user_admin(self):
+        return self.privilege == 'ALL' and self.database == ''
+
+    def user_exists(self):
+        try:
+            return any([user_row['user'] == self.user for user_row in self.client.get_list_users()])
+        except InfluxDBClientError as influx_error: #influxdb will throw an error if no admin user exists
+            if self.is_user_admin():
+                return False #admin user has not been created yet
+            else:
+                raise influx_error
+
+    def database_exists(self):
+        return any([db_row['name'] == self.database for db_row in self.client.get_list_database()])
+
+    def query_user_grants(self):
+        show_grants_query = "SHOW GRANTS FOR {0}".format(self.user)
+        return list(self.client.query(show_grants_query)['results'])
+
+    def grants_match(self):
+        privilege_string = self.privilege + " PRIVILEGES"
+        return any([(grant['database'] == self.database and grant['privilege'] == privilege_string)
+                    for grant in self.query_user_grants()])
+
+    def maintain_user(self):
+        changed = False
+
+        if not self.user_exists():
+            self.client.create_user(self.user, self.password, self.is_user_admin())
+            changed = True
+
+        if self.database != '':
+            if not self.database_exists():
+                self.client.create_database(self.database)
+                self.client.grant_privilege(self.privilege, self.database, self.user)
+                changed = True
+            else:
+                if not self.grants_match():
+                    self.client.grant_privilege(self.privilege, self.database, self.user)
+                    changed = True
+
+        return changed
+
+def main():
+    module = AnsibleModule(
+        argument_spec = dict(
+            login_user=dict(default=None),
+            login_password=dict(default=None),
+            login_host=dict(default='localhost'),
+            login_port=dict(default='8086'),
+            user=dict(required=True, aliases=['name']),
+            password=dict(default=None, required=True, no_log=True),
+            privilege=dict(default='READ', choices=['ALL', 'READ', 'WRITE']),
+            database=dict(default='')
+        )
+    )
+
+    if not influxdb_found:
+        module.fail_json(msg='the python influxdb package is required')
+
+    user_created_or_updated = InfluxdbUser(module).maintain_user()
+
+    module.exit_json(changed=user_created_or_updated)
+
+from ansible.module_utils.basic import *
+if __name__ == '__main__':
+    main()

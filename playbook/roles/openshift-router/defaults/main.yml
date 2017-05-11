@@ -1,0 +1,1 @@
+openshift_router_host: "{{ hostvars[groups['openshift-master'][0]]['private_ip'] }}"

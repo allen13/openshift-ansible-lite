@@ -1,0 +1,53 @@
+- name: setup the registry config folder
+  file: path=/etc/registry state=directory
+
+- name: install {{ openshift_registry_backend }} registry config
+  template: src={{ openshift_registry_backend }}-config.yml dest=/etc/registry/
+
+- name: create openshift registry certs
+  command: >
+    {{ openshift_admin_binary }} ca create-server-cert
+    --hostnames={{ openshift_registry_certificate_hostnames | join(',') }}
+    --signer-cert={{ openshift_master_config_path }}/ca.crt
+    --signer-key={{ openshift_master_config_path }}/ca.key
+    --signer-serial={{ openshift_master_config_path }}/ca.serial.txt
+    --cert={{ openshift_master_config_path }}/registry.crt
+    --key={{ openshift_master_config_path }}/registry.key
+  args:
+    creates: "{{ openshift_master_config_path }}/registry.crt"
+
+- name: create registry secrets
+  command: >
+    {{ openshift_client_binary }} secrets new registry-secret
+    registry.crt={{ openshift_master_config_path }}/registry.crt
+    registry.key={{ openshift_master_config_path }}/registry.key
+  register: secrets_task
+  failed_when: false
+  changed_when: "not secrets_task.stdout.find('already exists')"
+
+- name: create registry config secret
+  command: >
+    {{ openshift_client_binary }} secrets new registry-config
+    config.yml=/etc/registry/{{ openshift_registry_backend }}-config.yml
+  register: registry_config_secret
+  failed_when: false
+  changed_when: "not registry_config_secret.stdout.find('already exists')"
+
+- name: add the secret to the registry pods service account
+  command: >
+    {{ openshift_client_binary }} secrets add
+    serviceaccounts/default secrets/registry-secret
+  register: permissions_task
+  failed_when: "permissions_task.rc != 0"
+  changed_when: false
+
+- name: setup registry template
+  template:
+    src: registry.yml
+    dest: /etc/origin/registry.yml
+
+- name: deploy registry and accompanying apps
+  command: oc create -f /etc/origin/registry.yml -n default
+  register: redis_template
+  failed_when: false
+  changed_when: "not redis_template.stdout.find('already exists')"

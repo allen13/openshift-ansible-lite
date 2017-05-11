@@ -1,0 +1,32 @@
+[development-development]
+origin-01 ansible_ssh_host=192.0.2.101 private_ip=192.0.2.101 public_ip=192.0.2.201 ansible_ssh_private_key_file=./.vagrant/machines/origin-01/virtualbox/private_key vpn_ip=10.0.0.1
+origin-02 ansible_ssh_host=192.0.2.102 private_ip=192.0.2.102 public_ip=192.0.2.202 ansible_ssh_private_key_file=./.vagrant/machines/origin-02/virtualbox/private_key vpn_ip=10.0.0.2
+
+[all:vars]
+ansible_ssh_user=vagrant
+
+[etcd]
+origin-01
+
+[consul]
+origin-01
+
+[openshift-master]
+origin-01
+origin-02
+
+[openshift-node]
+origin-01
+origin-02
+
+[ceph-mon]
+origin-01
+origin-02
+
+[ceph-osd]
+origin-01
+origin-02
+
+[ceph-rgw]
+origin-01
+origin-02

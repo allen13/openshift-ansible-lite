@@ -1,0 +1,3 @@
+- name: restart consul-notify
+  service: name=consul-notify state=restarted
+  when: not consul_notify_started.changed

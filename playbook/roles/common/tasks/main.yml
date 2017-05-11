@@ -1,0 +1,39 @@
+- name: disable selinux
+  selinux: state=disabled
+
+- name: disable requiretty so that ansible pipelining works
+  lineinfile:
+    dest: /etc/sudoers
+    regexp: '.*Defaults\s*requiretty'
+    line: '#Defaults    requiretty'
+    validate: 'visudo -cf %s'
+
+- name: set swappiness to 1 so that swap is used as a last resort
+  sysctl: name=vm.swappiness value=1 state=present
+
+- name: stop and disable network manager
+  service: name=NetworkManager state=stopped enabled=no
+  register: network_manager
+
+- name: start and enable network
+  service: name=network state=restarted enabled=yes
+  when: network_manager.changed
+
+- name: wait for host to come back up
+  local_action: wait_for port=22 host={{ ansible_ssh_host }}
+  become: false
+
+- name: install ntp
+  yum: name=ntp
+
+- name: start and enable ntp
+  service: name=ntpd state=started enabled=yes
+
+- name: install admin cli tools
+  yum: name={{ item }}
+  with_items:
+    - vim
+    - bind-utils
+    - tcpdump
+    - nmap
+    - net-tools

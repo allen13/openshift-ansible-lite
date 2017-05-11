@@ -1,0 +1,46 @@
+- name: update openshift certs - this still doesn't work well - always test dev, never production
+  hosts: openshift-master
+  become: true
+  gather_facts: false
+  roles:
+    - openshift-common
+  tasks:
+    - name: remove old certs
+      file: path={{ openshift_master_config_path }}/{{ item.file }} state=absent
+      with_items: "{{ openshift_master_files }}"
+
+    - name: stop openshift-master-api
+      service: name=openshift-master-api state=stopped
+
+    - name: remove old certificate tokens
+      shell: etcdctl ls --recursive | grep /openshift-infra.*controller.*token | xargs -L 1 etcdctl rm
+      run_once: true
+
+    - name: create the master certificates
+      command: >
+        {{ openshift_admin_binary }} ca create-master-certs
+          --hostnames={{ openshift_master_certificate_hostnames | join(',') }}
+          --master={{ openshift_master_api_url }}
+          --public-master={{ openshift_master_public_url }}
+          --cert-dir={{ openshift_master_config_path }}
+      run_once: true
+      args:
+        creates: "{{ openshift_master_config_path }}/master.server.crt"
+
+    - name: transfer certs locally
+      fetch:
+        src: "{{ openshift_master_config_path }}/{{ item.file }}"
+        dest: "files/{{ openshift_cluster }}/{{ item.file }}"
+        flat: true
+      run_once: true
+      with_items: "{{ openshift_master_files }}"
+
+    - name: setup certs
+      copy:
+        src: "files/{{ openshift_cluster }}/{{ item.file }}"
+        dest: "{{ openshift_master_config_path }}/{{ item.file }}"
+        mode: "{{ item.mode }}"
+      with_items: "{{ openshift_master_files }}"
+
+    - name: start openshift-master-api
+      service: name=openshift-master-api state=started

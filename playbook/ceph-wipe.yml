@@ -1,0 +1,126 @@
+- name: wipe all ceph data
+  hosts: ceph-osd:ceph-mon
+  become: true
+  gather_facts: false
+  tasks:
+    - name: are you really sure
+      debug: msg="WTF are you doing! If you know what you are doing pass -e 'really_sure=true'"
+      when: "really_sure is not defined"
+      failed_when: "really_sure is not defined"
+
+    - name: determine if ceph is installed
+      stat:
+        path: /etc/systemd/system/ceph.target
+      register: ceph_exists
+
+    - name: stop ceph
+      service:
+        name: ceph.target
+        state: stopped
+        enabled: false
+      when: "ceph_exists.stat.exists"
+
+    - name: stop and disable ceph mon
+      service:
+        name: ceph-mon@{{ inventory_hostname }}
+        state: stopped
+        enabled: false
+      when: "ceph_exists.stat.exists"
+      failed_when: false
+
+    - name: unlink ceph mon systemd file
+      file:
+        path: /etc/systemd/system/multi-user.target.wants/ceph-mon@{{ inventory_hostname }}.service
+        state: absent
+
+    - name: remove ceph monitor data
+      file:
+        path: "/var/lib/ceph/mon/ceph-{{ inventory_hostname }}"
+        state: absent
+
+    - name: get osd id
+      shell: "ls /var/lib/ceph/osd/ |grep -oh '[0-9]*'"
+      changed_when: false
+      failed_when: false
+      register: osd_ids
+
+    - name: stop and disable ceph osd
+      service:
+        name: ceph-osd@{{ item }}
+        state: stopped
+        enabled: false
+      with_items: "{{ osd_ids.stdout_lines }}"
+      when: "ceph_exists.stat.exists"
+
+    - name: unlink ceph osd systemd file
+      file:
+        path: /etc/systemd/system/multi-user.target.wants/ceph-osd@{{ item }}.service
+        state: absent
+      with_items: "{{ osd_ids.stdout_lines }}"
+
+    - name: unmount all ceph osd directories
+      command: "umount -rl /var/lib/ceph/osd/ceph-{{ item }}"
+      with_items: "{{ osd_ids.stdout_lines }}"
+
+    - name: remove ceph osd data directory
+      file:
+        path: "/var/lib/ceph/osd/ceph-{{ item }}"
+        state: absent
+      with_items: "{{ osd_ids.stdout_lines }}"
+
+    - name: get list of ceph disks
+      shell: "/sbin/blkid | grep 'ceph data' | awk '{print $1}' | cut -c 1-8"
+      register: ceph_disks
+      changed_when: false
+
+    - name: ensure gdisk is installed
+      yum: name=gdisk
+
+    - name: remove all partitions
+      shell: "/sbin/sgdisk -Z {{ item }}"
+      with_items: "{{ ceph_disks.stdout_lines }}"
+
+    - name: inform kernel of partition table changes
+      command: partprobe
+      changed_when: false
+
+    - name: dd zeros across drives to really wipe
+      command: "dd if=/dev/zero bs=1M count=100 of={{ item }}"
+      with_items: "{{ ceph_disks.stdout_lines }}"
+
+    - name: remove ceph radosgw data
+      file:
+        path: /var/lib/ceph/radosgw/ceph-rgw.{{ inventory_hostname }}
+        state: absent
+
+    - name: check if ceph lockfile dir exists
+      stat:
+        path: /var/lib/ceph/tmp
+      register: ceph_lock_files_exist
+
+    - name: grab list of ceph lock files
+      command: "ls -1 /var/lib/ceph/tmp"
+      register: ceph_lock_files
+      changed_when: false
+      when: "ceph_lock_files_exist.stat.exists"
+
+    - name: remove ceph lockfiles
+      file:
+        path: /var/lib/ceph/radosgw/{{ item }}
+        state: absent
+      with_items: "{{ ceph_lock_files.stdout_lines }}"
+      when: "ceph_lock_files_exist.stat.exists"
+
+    - name: remove ceph bootstrap data
+      file:
+        path: /var/lib/ceph/bootstrap-{{ item }}
+        state: absent
+      with_items:
+        - osd
+        - rgw
+        - mds
+
+    - name: uninstall ceph
+      yum:
+        name: ceph-common
+        state: absent

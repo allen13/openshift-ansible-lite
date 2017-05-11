@@ -1,0 +1,37 @@
+- name: create radosgw S3 registry user
+  shell: >
+    radosgw-admin user create
+    --uid=registry
+    --display-name=registry
+    > /etc/ceph/registry.json
+  args:
+    creates: "/etc/ceph/registry.json"
+
+- name: create radosgw swift registry user
+  shell: >
+    radosgw-admin subuser create
+    --uid=registry
+    --subuser=registry:swift
+    --access=full
+    > /etc/ceph/registry-swift.json
+  args:
+    creates: "/etc/ceph/registry-swift.json"
+
+- name: grab registry object storage credentials
+  slurp: src="/etc/ceph/registry-swift.json"
+  register: registry_credentials_content
+
+- name: convert swift credentials to ansible variable
+  set_fact:
+    ceph_objectstorage_credentials: "{{ registry_credentials_content.content | b64decode | from_json }}"
+
+- name: ensure bin directory exists
+  file:
+    path: /root/bin
+    state: directory
+
+- name: install swift test script for ops troubleshooting
+  template:
+    src: swift-test.sh
+    dest: /root/bin/swift-test.sh
+    mode: 0755

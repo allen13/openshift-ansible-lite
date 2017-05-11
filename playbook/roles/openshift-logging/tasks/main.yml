@@ -1,0 +1,30 @@
+- name: create logging project
+  oc_create:
+    manifest: "{{ openshift_logging_project_manifest | to_yaml }}"
+
+- name: create logging-deployer service account
+  oc_create:
+    manifest: "{{ openshift_logging_deployer_service_acccout | to_yaml }}"
+    project: "{{ openshift_logging_project }}"
+
+- name: setup logging permissions
+  command: >
+    {{ openshift_admin_binary }} {{item}}
+  with_items: "{{ openshift_logging_policies }}"
+  register: permissions_task
+  failed_when: "permissions_task.rc != 0"
+  changed_when: false
+
+- name: setup logging secrets
+  command: >
+    {{ openshift_client_binary }} -n {{ openshift_logging_project }} secrets new logging-deployer \
+      ca.crt={{ openshift_master_config_path }}/ca.crt \
+      ca.key={{ openshift_master_config_path }}/ca.key
+  register: secrets_task
+  failed_when: false
+  changed_when: "not secrets_task.stdout.find('already exists')"
+
+- name: deploy openshift logging
+  oc_create:
+    manifest: "{{ lookup('template','logging-deployer.yaml') | from_yaml | to_yaml }}"
+    project: "{{ openshift_logging_project }}"

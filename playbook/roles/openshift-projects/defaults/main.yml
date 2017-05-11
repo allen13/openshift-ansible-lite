@@ -1,0 +1,10 @@
+openshift_projects:
+- name: metrics
+  policies:
+    - add-scc-to-user anyuid -z default
+    - add-scc-to-user privileged -z default
+    - add-cluster-role-to-user cluster-admin system:serviceaccount:metrics:default
+- name: internal
+  policies:
+    - add-scc-to-user anyuid -z default
+    - add-cluster-role-to-user cluster-admin system:serviceaccount:internal:default

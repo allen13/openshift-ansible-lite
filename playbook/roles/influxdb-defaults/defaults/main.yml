@@ -1,0 +1,33 @@
+influxdb_service_ip: 192.168.0.124
+influxdb_api_url: http://{{ influxdb_service_ip }}:8086
+influxdb_external_hostname: influxdb.service.os
+
+influxdb_node_port: 8086
+
+influxdb_admin_user: admin
+influxdb_admin_password: admin
+
+influxdb_metrics_db: metrics
+influxdb_metrics_db_user: metrics
+influxdb_metrics_db_password: metrics
+
+influxdb_default_retention_policy: metrics_default
+influxdb_retention_policies:
+  - name: metrics_default
+    duration: 365d
+    replication: 1
+    default: true
+
+kapacitor_service_ip: 192.168.0.125
+kapacitor_url: http://{{ kapacitor_service_ip }}:9092
+
+kapacitor_ticks:
+  - name: cpu_alert
+    type: stream
+
+grafana_admin_password: admin
+grafana_server_root_url: http://grafana-metrics.apps.{{ openshift_external_dns_domain }}/
+
+golerta_service_ip: 192.168.0.131
+golerta_signing_key: CHANGEME
+golerta_agent_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE0NzA5MjQ2OTUsImlzcyI6ImdvbGVydGEtdG9rZW4tdG9vbCIsImp0aSI6ImRldlRva2VuIn0.LqgjFsm52fDRRjq-sxRK-wfHhTbtihFM_5KJwIpgacI

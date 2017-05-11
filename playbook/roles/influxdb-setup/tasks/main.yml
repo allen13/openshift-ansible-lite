@@ -1,0 +1,45 @@
+- name: install influxdb client libraries and binaries
+  yum: name="{{ item }}" state=latest
+  with_items:
+    - influxdb
+    - python-pip
+
+- name: make sure influxdb is stopped and disabled
+  service: name=influxdb state=stopped enabled=false
+
+- name: install influxdb python library
+  pip: name=influxdb
+
+- name: wait for influxdb to be started
+  wait_for: host={{ influxdb_service_ip }} port=8086
+
+- name: create influxdb admin user
+  influxdb_user:
+    login_host: "{{ influxdb_service_ip }}"
+    login_user: "{{ influxdb_admin_user }}"
+    login_password: "{{ influxdb_admin_password }}"
+    user: "{{ influxdb_admin_user }}"
+    password: "{{ influxdb_admin_password }}"
+    privilege: ALL
+
+- name: create influxdb telegraf user
+  influxdb_user:
+    login_host: "{{ influxdb_service_ip }}"
+    login_user: "{{ influxdb_admin_user }}"
+    login_password: "{{ influxdb_admin_password }}"
+    user: "{{ influxdb_metrics_db_user }}"
+    password: "{{ influxdb_metrics_db_password }}"
+    database: "{{ influxdb_metrics_db }}"
+    privilege: ALL
+
+- name: create retention policies
+  influxdb_retention_policy:
+    hostname: "{{ influxdb_service_ip }}"
+    username: "{{ influxdb_admin_user }}"
+    password: "{{ influxdb_admin_password }}"
+    database_name: "{{ influxdb_metrics_db }}"
+    policy_name: "{{ item.name }}"
+    duration: "{{ item.duration }}"
+    replication: "{{ item.replication }}"
+    default: "{{ item.default | default(false) }}"
+  with_items: "{{ influxdb_retention_policies }}"

@@ -1,0 +1,5 @@
+openshift_cron_jobs:
+- name: ldap group sync
+  day: "*/2"
+  job: "{{ openshift_admin_binary }} groups sync --sync-config={{ openshift_master_config_path }}/sync-config.yml --confirm"
+  when: "openshift_identity_provider is defined and openshift_identity_provider == 'ldap'"

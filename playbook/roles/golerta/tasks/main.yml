@@ -1,0 +1,32 @@
+- name: create golerta certs
+  command: >
+    {{ openshift_admin_binary }} ca create-server-cert
+    --hostnames={{ golerta_registry_certificate_hostnames | join(',') }}
+    --signer-cert={{ openshift_master_config_path }}/ca.crt
+    --signer-key={{ openshift_master_config_path }}/ca.key
+    --signer-serial={{ openshift_master_config_path }}/ca.serial.txt
+    --cert={{ openshift_master_config_path }}/golerta.crt
+    --key={{ openshift_master_config_path }}/golerta.key
+  args:
+    creates: "{{ openshift_master_config_path }}/golerta.crt"
+
+- name: create golerta secrets
+  command: >
+    {{ openshift_client_binary }} secrets new golerta-certs
+    golerta.crt={{ openshift_master_config_path }}/golerta.crt
+    golerta.key={{ openshift_master_config_path }}/golerta.key
+    -n metrics
+  register: secrets_task
+  failed_when: false
+  changed_when: "not secrets_task.stdout.find('already exists')"
+
+- name: setup golerta template
+  template:
+    src: golerta.yml
+    dest: /etc/origin/golerta.yml
+
+- name: deploy golerta
+  command: oc create -f /etc/origin/golerta.yml -n metrics
+  register: golerta_deploy
+  failed_when: false
+  changed_when: "not golerta_deploy.stdout.find('already exists')"

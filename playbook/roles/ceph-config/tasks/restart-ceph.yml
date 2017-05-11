@@ -1,0 +1,27 @@
+- name: don't restart if ceph isn't healthy
+  command: ceph health
+  changed_when: false
+  failed_when: "'HEALTH_OK' not in ceph_health.stdout_lines"
+  register: ceph_health
+
+- name: restart ceph-mon
+  service: name=ceph-mon@{{ inventory_hostname }} state=restarted
+  when: "('ceph-mon' in group_names) and (ceph_mon_service_file.stat.islnk is defined)"
+
+- name: restart ceph-radosgw
+  service: name=ceph-radosgw@rgw.{{ inventory_hostname }} state=restarted
+  when: "('ceph-rgw' in group_names) and (ceph_rgw_service_file.stat.islnk is defined)"
+
+- name: restart ceph-osd
+  service: name=ceph-osd@{{ item }} state=restarted
+  when: "('ceph-osd' in group_names) and (osd_ids.stdout_lines|length > 0)"
+  with_items: "{{ osd_ids.stdout_lines }}"
+
+- name: wait until ceph cluster is healthy again
+  command: ceph health
+  changed_when: false
+  register: ceph_health_post_check
+  until: "'HEALTH_OK' in ceph_health_post_check.stdout_lines"
+  failed_when: "'HEALTH_OK' not in ceph_health_post_check.stdout_lines"
+  retries: 50
+  delay: 3

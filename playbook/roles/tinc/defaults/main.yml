@@ -1,0 +1,12 @@
+vpn_interface: tun10
+vpn_netname: vnet
+vpn_netmask: 24
+vpn_connection_servers: "{{ groups['vpn-network-a'] if 'vpn-network-a' not in group_names else groups['vpn-network-b'] }}"
+vpn_connection_private_ips: "{{ vpn_connection_servers|map('extract',hostvars,'private_ip')|list }}"
+vpn_connection_extra_routes: []
+vpn_connection_hostnames: "{{ vpn_connection_servers|map('replace','-','_')|list }}"
+vpn_hostname: "{{ inventory_hostname|replace('-', '_') }}"
+
+vpn_advertise_subnets:
+  - "{{ vpn_ip }}/32"
+  - "{{ private_ip }}/32"

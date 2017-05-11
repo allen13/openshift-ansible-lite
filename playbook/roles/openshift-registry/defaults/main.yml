@@ -1,0 +1,11 @@
+openshift_registry_backend: filesystem-based
+openshift_registry_loglevel: warn
+
+openshift_registry_swift:
+  username: "{{ ceph_objectstorage_credentials['swift_keys'][0]['user'] }}"
+  password: "{{ ceph_objectstorage_credentials['swift_keys'][0]['secret_key'] }}"
+  authurl: http://{{ openshift_docker_registry_endpoint }}:8080/auth/1.0
+  container: registry
+
+openshift_registry_swift_yamlized: "{{ openshift_registry_swift | to_nice_yaml }}"
+openshift_registry_oauth_secret: userNWJjNDU1NWJlNGI3MjFiYmQ4N2MzOTJmOTQwNDIyNGI0MTQ1MDIwYzE4ODViZDMy

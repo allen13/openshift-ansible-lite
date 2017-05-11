@@ -1,0 +1,16 @@
+- name: install additional cron scripts
+  include: cron-scripts.yml
+
+- name: Install cron jobs
+  cron:
+    name: "{{ item.name }}"
+    job: "{{ item.job }}"
+    state: "{{ item.state | default('present') }}"
+    user: "{{ item.user | default('root') }}"
+    month: "{{ item.month | default('*') }}"
+    weekday: "{{ item.weekday | default('*') }}"
+    day: "{{ item.day | default('*') }}"
+    hour: "{{ item.hour | default('*') }}"
+    minute: "{{ item.minute | default('*') }}"
+  with_items: "{{ openshift_cron_jobs }}"
+  when: "{{ item.when }}"

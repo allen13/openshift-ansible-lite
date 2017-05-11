@@ -1,0 +1,14 @@
+[Unit]
+Description=Consul Notify
+Wants=consul.service
+After=consul.service
+
+[Service]
+ExecStart=/usr/local/bin/consul-notify
+ExecReload=/bin/kill -HUP $MAINPID
+KillSignal=SIGINT
+Restart=always
+RestartSec=10s
+
+[Install]
+WantedBy=multi-user.target

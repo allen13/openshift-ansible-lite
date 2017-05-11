@@ -1,0 +1,17 @@
+{
+  "service": {
+    "name": "etcd",
+    "address": "{{ private_ip }}",
+    "port": 2379,
+    "checks": [
+      {
+        "tcp": "{{ private_ip }}:2379",
+        "interval": "10s"
+      },
+      {
+        "tcp": "{{ private_ip }}:2380",
+        "interval": "10s"
+      }
+    ]
+  }
+}

@@ -1,0 +1,2 @@
+ceph_dc_mon_group: "{{ groups['ceph-mon'] | intersect(groups[openshift_env_dc]) }}"
+ceph_dc_rgw_group: "{{ groups['ceph-rgw'] | intersect(groups[openshift_env_dc]) }}"

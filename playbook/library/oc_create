@@ -1,0 +1,55 @@
+#!/bin/bash
+
+# Run create on an openshift manifest using the oc client binary
+
+#### begin ansible module boilerplate functions ####
+#### https://gist.github.com/nowayride/3dba8d86bb55a4e35726 ####
+source $1
+
+fail_module() {
+  printf '{"failed": true, "msg": "%s"}' "$1"
+  exit 1
+}
+
+changed() {
+  printf '{"changed": %s}' "$1"
+  exit 0
+}
+
+default() {
+  if [ -z "$1" ]
+  then
+    ${!1}=$2
+  fi
+}
+
+require() {
+  if [ -z "${!1}" ]
+  then
+    printf '{"failed": true, "msg": "%s must be defined"}' "$1"
+    exit 1
+  fi
+}
+#### end ansible module boilerplate functions ####
+require manifest
+
+openshift_client_binary=/bin/oc
+openshift_tmp_manifest_path=/tmp/openshift_tmp_manifest.yml
+
+default project default
+
+# If the manifest begins with a quote, remove them
+if [[ "$manifest" = \'* ]]; then
+  manifest="${manifest:1:${#manifest}-2}"
+fi
+echo "$manifest" > "$openshift_tmp_manifest_path"
+
+output=$("$openshift_client_binary" -n "$project" create -f "$openshift_tmp_manifest_path" 2>&1)
+
+if [[ "$output" = *created* ]]; then
+  changed true
+elif [[ "$output" = *exists* ]]; then
+  changed false
+else
+  fail_module "Failed to create manifest: $output"
+fi

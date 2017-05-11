@@ -1,0 +1,3 @@
+ceph_openshift_volumes: []
+
+ceph_block_device_pool: rbd

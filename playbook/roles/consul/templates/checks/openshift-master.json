@@ -1,0 +1,13 @@
+{
+  "service": {
+    "name": "openshift",
+    "address": "{{ private_ip }}",
+    "port": 8443,
+    "checks": [
+      {
+        "tcp": "{{ private_ip }}:8443",
+        "interval": "10s"
+      }
+    ]
+  }
+}

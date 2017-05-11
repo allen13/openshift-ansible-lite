@@ -1,0 +1,37 @@
+allowDisabledDocker: false
+apiVersion: v1
+authConfig:
+  authenticationCacheSize: 1000
+  authenticationCacheTTL: 5m
+  authorizationCacheSize: 1000
+  authorizationCacheTTL: 5m
+dnsDomain: {{ openshift_dns_domain }}
+dnsIP: {{ openshift_kubernetes_service_ip }}
+dockerConfig:
+  execHandlerName: native
+enableUnidling: true
+imageConfig:
+  format: openshift/origin-${component}:${version}
+  latest: false
+iptablesSyncPeriod: 30s
+kind: NodeConfig
+masterClientConnectionOverrides:
+  acceptContentTypes: application/vnd.kubernetes.protobuf,application/json
+  burst: 40
+  contentType: application/vnd.kubernetes.protobuf
+  qps: 20
+masterKubeConfig: system:node:{{ inventory_hostname }}.kubeconfig
+networkConfig:
+  mtu: 1450
+  networkPluginName: {{ openshift_network_plugin }}
+nodeIP: {{ private_ip }}
+nodeName: {{ private_ip }}
+podManifestConfig: null
+servingInfo:
+  bindAddress: 0.0.0.0:10250
+  bindNetwork: tcp4
+  certFile: server.crt
+  clientCA: ca.crt
+  keyFile: server.key
+  namedCertificates: null
+volumeDirectory: {{ openshift_node_volume_path }}

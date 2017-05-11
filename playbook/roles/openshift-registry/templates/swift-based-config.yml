@@ -1,0 +1,42 @@
+version: 0.1
+log:
+  level: {{ openshift_registry_loglevel }}
+http:
+  addr: :5000
+storage:
+  cache:
+    blobdescriptor: redis
+  swift:
+{% for line in openshift_registry_swift_yamlized.splitlines() %}
+    {{ line }}
+{% endfor %}
+  delete:
+    enabled: true
+auth:
+  openshift:
+    realm: openshift
+
+middleware:
+  registry:
+    - name: openshift
+  repository:
+    - name: openshift
+      options:
+        acceptschema2: false
+        pullthrough: true
+        enforcequota: false
+        projectcachettl: 1m
+        blobrepositorycachettl: 10m
+  storage:
+    - name: openshift
+
+redis:
+  addr: docker-registry-redis.default.svc.{{ openshift_dns_domain }}:6379
+  db: 0
+  dialtimeout: 10ms
+  readtimeout: 10ms
+  writetimeout: 10ms
+  pool:
+    maxidle: 16
+    maxactive: 64
+    idletimeout: 300s

@@ -1,0 +1,7 @@
+[ceph]
+name=Ceph noarch packages
+baseurl=http://download.ceph.com/rpm-{{ ceph_rpm_version }}/el7/x86_64
+enabled=1
+gpgcheck=1
+type=rpm-md
+gpgkey=https://download.ceph.com/keys/release.asc

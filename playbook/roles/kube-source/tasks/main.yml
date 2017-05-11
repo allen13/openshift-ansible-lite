@@ -1,0 +1,32 @@
+- name: create kube-source certs
+  command: >
+    {{ openshift_admin_binary }} ca create-server-cert
+    --hostnames={{ kube_source_certificate_hostnames | join(',') }}
+    --signer-cert={{ openshift_master_config_path }}/ca.crt
+    --signer-key={{ openshift_master_config_path }}/ca.key
+    --signer-serial={{ openshift_master_config_path }}/ca.serial.txt
+    --cert={{ openshift_master_config_path }}/kube-source.crt
+    --key={{ openshift_master_config_path }}/kube-source.key
+  args:
+    creates: "{{ openshift_master_config_path }}/kube-source.crt"
+
+- name: create kube-source secrets
+  command: >
+    {{ openshift_client_binary }} secrets new kube-source-certs
+    kube-source.crt={{ openshift_master_config_path }}/kube-source.crt
+    kube-source.key={{ openshift_master_config_path }}/kube-source.key
+    -n internal
+  register: secrets_task
+  failed_when: false
+  changed_when: "not secrets_task.stdout.find('already exists')"
+
+- name: setup kube-source template
+  template:
+    src: kube-source.yml
+    dest: /etc/origin/kube-source.yml
+
+- name: deploy kube-source
+  command: oc create -f /etc/origin/kube-source.yml -n internal
+  register: kube_source_deploy
+  failed_when: false
+  changed_when: "not kube_source_deploy.stdout.find('already exists')"

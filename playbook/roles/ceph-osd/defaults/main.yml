@@ -1,0 +1,9 @@
+disable_transparent_hugepage: true
+disable_swap: true
+os_tuning_params:
+  - { name: kernel.pid_max, value: 4194303 }
+  - { name: fs.file-max, value: 26234859 }
+  - { name: vm.zone_reclaim_mode, value: 0 }
+  - { name: vm.vfs_cache_pressure, value: 50 }
+  - { name: vm.min_free_kbytes, value: "{{ vm_min_free_kbytes }}" }
+ceph_empty_disks: "{{ ansible_devices | get_empty_disks }}"

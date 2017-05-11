@@ -1,0 +1,4 @@
+etcd_initial_cluster: "{{ hostvars | get_etcd_cluster(groups['etcd']) | join(',') }}"
+etcd_initial_cluster_token: etcd-cluster
+etcd_proxy: "{{ 'off' if inventory_hostname in groups['etcd'] else 'on'}}"
+etcd_initial_cluster_state: new

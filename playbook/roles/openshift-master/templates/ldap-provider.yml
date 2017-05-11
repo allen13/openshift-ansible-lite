@@ -1,0 +1,21 @@
+- name: ldap-provider
+  challenge: true
+  login: true
+  mappingMethod: claim
+  provider:
+    apiVersion: v1
+    kind: LDAPPasswordIdentityProvider
+    attributes:
+      id:
+      - {{ ldap_login_attribute }}
+      email:
+      - mail
+      name:
+      - cn
+      preferredUsername:
+      - {{ ldap_login_attribute }}
+    bindDN: "{{ ldap_bind_dn }}"
+    bindPassword: "{{ ldap_bind_password }}"
+    insecure: {{ ldap_insecure }}
+    url: "{{ ldap_url }}/{{ ldap_base_dn }}?{{ ldap_login_attribute }}"
+    ca: "{{ ldap_ca_cert }}"

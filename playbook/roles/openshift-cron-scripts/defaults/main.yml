@@ -1,0 +1,4 @@
+openshift_cron_jobs:
+- name: kubernetes firewall lockdown
+  job: "/root/bin/kubernetes-firewall-lockdown.sh"
+  when: "inventory_hostname in groups['openshift-master'] or inventory_hostname in groups['openshift-node']"

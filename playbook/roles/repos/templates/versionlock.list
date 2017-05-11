@@ -1,0 +1,3 @@
+{% for package in version_locked_packages %}
+{{ package }}
+{% endfor %}

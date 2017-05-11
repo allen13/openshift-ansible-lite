@@ -1,0 +1,47 @@
+{
+  "services": [
+    {
+      "name": "kubelet",
+      "address": "{{ private_ip }}",
+      "port": 10250,
+      "checks": [
+        {
+          "tcp": "{{ private_ip }}:10250",
+          "interval": "10s"
+        }
+      ]
+    },
+    {
+      "name": "docker",
+      "address": "{{ private_ip }}",
+      "checks": [
+        {
+          "script": "/usr/bin/check_docker -base-url=unix:///var/run/docker.sock",
+          "interval": "10s"
+        }
+      ]
+    },
+    {
+      "name": "influxdb",
+      "address": "{{ private_ip }}",
+      "port": {{ influxdb_node_port }},
+      "checks": [
+        {
+          "tcp": "{{ private_ip }}:{{ influxdb_node_port }}",
+          "interval": "10s"
+        }
+      ]
+    },
+    {
+      "name": "golerta",
+      "address": "{{ private_ip }}",
+      "port": 5608,
+      "checks": [
+        {
+          "tcp": "{{ private_ip }}:5608",
+          "interval": "10s"
+        }
+      ]
+    }
+  ]
+}

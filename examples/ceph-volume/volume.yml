@@ -1,0 +1,36 @@
+kind: List
+apiVersion: v1
+metadata: {}
+items:
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    name: "ceph-1g-0000"
+  spec:
+    capacity:
+      storage: "1Gi"
+    accessModes:
+      - "ReadWriteOnce"
+    rbd:
+      monitors:
+        - 192.0.2.101:6789
+        - 192.0.2.102:6789
+      pool: rbd
+      image: ceph-1g-0000
+      user: admin
+      secretRef:
+         name: "ceph-admin-keyring-secret"
+      fsType: xfs
+      readOnly: false
+    persistentVolumeReclaimPolicy: "Recycle"
+
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    name: "ceph-1g-0000"
+  spec:
+    accessModes:
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: 1Gi

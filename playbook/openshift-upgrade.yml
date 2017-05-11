@@ -1,0 +1,55 @@
+- name: repos
+  hosts: all
+  gather_facts: false
+  become: true
+  roles:
+    - repos
+  tags:
+    - repos
+
+
+- name: etcd
+  hosts: all
+  gather_facts: false
+  become: true
+  roles:
+    - role: etcd
+      when: "'etcd' in groups"
+  tags:
+    - etcd
+
+- name: openshift-node docker upgrade
+  hosts: openshift-node
+  gather_facts: false
+  become: true
+  serial: 1
+  tasks:
+    - name: upgrade docker to latest
+      yum: name=docker state=latest
+      register: docker_upgrade
+
+    - name: restart docker
+      service: state=restarted name=docker
+      when: docker_upgrade.changed
+  tags:
+    - docker
+
+- name: openshift-master upgrade
+  hosts: openshift-master
+  gather_facts: false
+  become: true
+  serial: 1
+  roles:
+    - openshift-master
+  tags:
+    - openshift-master
+
+- name: openshift-node upgrade
+  hosts: openshift-node
+  gather_facts: false
+  become: true
+  serial: 1
+  roles:
+    - openshift-node
+  tags:
+    - openshift-node

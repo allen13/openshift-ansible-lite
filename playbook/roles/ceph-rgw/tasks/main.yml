@@ -1,0 +1,46 @@
+- name: install ceph-radosgw
+  yum: name=ceph-radosgw
+
+- name: create rados gateway directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: ceph
+    group: ceph
+  with_items:
+    - "{{ ceph_data_location }}/bootstrap-rgw"
+    - "{{ ceph_data_location }}/radosgw"
+    - "{{ ceph_data_location }}/radosgw/{{ ceph_cluster_name }}-rgw.{{ inventory_hostname }}"
+
+- name: copy rgw bootstrap key
+  copy:
+    dest: "{{ ceph_data_location }}/bootstrap-rgw/{{ ceph_cluster_name }}.keyring"
+    src: "files/ceph/{{ openshift_cluster }}/rgw.keyring"
+    mode: 0600
+    owner: ceph
+    group: ceph
+
+- name: create rados gateway keyring
+  command: >
+    ceph --cluster {{ ceph_cluster_name }}
+         --name client.bootstrap-rgw
+         --keyring {{ ceph_data_location }}/bootstrap-rgw/{{ ceph_cluster_name }}.keyring
+         auth get-or-create client.rgw.{{ inventory_hostname }}
+         osd 'allow rwx'
+         mon 'allow rw'
+         -o {{ ceph_data_location }}/radosgw/{{ ceph_cluster_name }}-rgw.{{ inventory_hostname }}/keyring
+  become_user: ceph
+  args:
+    creates: "{{ ceph_data_location }}/radosgw/{{ ceph_cluster_name }}-rgw.{{ inventory_hostname }}/keyring"
+
+- name: link ceph-radosgw systemd file
+  file:
+    src: /usr/lib/systemd/system/ceph-radosgw@.service
+    dest: /etc/systemd/system/multi-user.target.wants/ceph-radosgw@rgw.{{ inventory_hostname }}.service
+    state: link
+
+- name: start and enable rados gateway
+  service:
+    name: ceph-radosgw@rgw.{{ inventory_hostname }}
+    state: started
+    enabled: yes

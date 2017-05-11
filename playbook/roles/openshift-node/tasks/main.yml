@@ -1,0 +1,165 @@
+- name: install openvswitch packages
+  yum: name=openvswitch state=latest
+  notify: restart openvswitch
+
+- name: install openshift-node packages
+  yum: name={{ item }} state=latest
+  register: origin_node_install
+  with_items:
+    - origin
+    - origin-sdn-ovs
+  notify: restart openshift-node
+
+- set_fact:
+    origin_node_install_changed: "{{ origin_node_install | changed }}"
+
+- name: create openshift-node config directories
+  file:
+    path: "{{ item }}"
+    state: directory
+  with_items:
+    - "{{ openshift_node_config_path }}"
+
+- name: create the kube config directory
+  file:
+    path: /root/.kube/
+    state: directory
+
+- name: copy the admin kubeconfig to /root/.kube/config
+  copy:
+    src: "files/{{ openshift_cluster }}/admin.kubeconfig"
+    dest: /root/.kube/config
+
+- name: install ca root certificate set
+  copy:
+    src: "{{ openshift_cluster }}/{{ item.file }}"
+    dest: "{{ openshift_node_config_path }}/{{ item.file }}"
+    mode: "{{ item.mode }}"
+    force: "{{ item.force | default(true) }}"
+  with_items:
+    - file: ca.crt
+      mode: '0644'
+    - file: ca.key
+      mode: '0600'
+    - file: ca.serial.txt
+      mode: '0644'
+      force: false
+
+- name: setup entries for the docker cert directories
+  file:
+    path: /etc/docker/certs.d/{{ item }}:5000
+    state: directory
+  with_items: "{{ openshift_registry_certificate_hostnames }}"
+
+- name: add ca root certs to the docker cert directories
+  file:
+    src: "{{ openshift_node_config_path }}/ca.crt"
+    dest: /etc/docker/certs.d/{{ item }}:5000/ca.crt
+    state: link
+  with_items: "{{ openshift_registry_certificate_hostnames }}"
+
+- name: generate the node client config
+  command: >
+    {{ openshift_admin_binary }} create-api-client-config
+      --certificate-authority={{ openshift_node_config_path }}/ca.crt
+      --client-dir={{ openshift_node_config_path }}
+      --groups=system:nodes
+      --master={{ openshift_master_api_url }}
+      --signer-cert={{ openshift_node_config_path }}/ca.crt
+      --signer-key={{ openshift_node_config_path }}/ca.key
+      --signer-serial={{ openshift_node_config_path }}/ca.serial.txt
+      --user=system:node:{{ inventory_hostname }}
+  args:
+    creates: "{{ openshift_node_config_path }}/system:node:{{ inventory_hostname }}.crt"
+
+- name: generate the node server certificate
+  command: >
+    {{ openshift_admin_binary }} ca create-server-cert
+      --cert={{ openshift_node_config_path }}/server.crt
+      --key={{ openshift_node_config_path }}/server.key
+      --hostnames="{{ private_ip }}"
+      --signer-cert={{ openshift_node_config_path }}/ca.crt
+      --signer-key={{ openshift_node_config_path }}/ca.key
+      --signer-serial={{ openshift_node_config_path }}/ca.serial.txt
+  args:
+    creates: "{{ openshift_node_config_path }}/server.crt"
+
+- name: ensure manifests directory is present
+  file:
+    path: '{{ openshift_pod_manifest_path }}'
+    state: directory
+    mode: 0755
+
+- name: install dummy container that sleeps then exits to prevent failure from empty manifests
+  copy:
+    src: alpine.yml
+    dest: '{{ openshift_pod_manifest_path }}/alpine.yml'
+
+- name: install openshift-node config
+  template:
+    src: node-config.yaml
+    dest: "{{ openshift_node_config_path }}/node-config.yaml"
+  notify: restart openshift-node
+
+- name: install openshift-node sysconfig
+  template:
+    src: openshift-node.sysconfig
+    dest: /etc/sysconfig/openshift-node
+  notify: restart openshift-node
+
+- name: install openshift-node service
+  template:
+    src: openshift-node.service
+    dest: /etc/systemd/system/openshift-node.service
+  register: openshift_node_service
+  notify: restart openshift-node
+
+- name: reload service files
+  command: systemctl daemon-reload
+  when: openshift_node_service.changed
+
+- name: start and enable openvswitch
+  service: name=openvswitch state=started enabled=yes
+  register: openvswitch_start_result
+
+- name: wait for openshift master
+  command: curl -k --head --silent {{ openshift_master_api_url }}
+  register: api_available_output
+  until: api_available_output.stdout.find("200 OK") != -1
+  retries: 120
+  delay: 1
+  changed_when: false
+
+- name: start and enable openshift-node
+  service: name=openshift-node state=started enabled=yes
+  register: openshift_node_start_result
+
+- name: restart openshif-node when packages are updated
+  service: name=openshift-node state=restarted
+  register: openshift_node_restart_result
+  when:
+    (not (openshift_node_start_result | changed)) and
+    (origin_node_install_changed or
+      (origin_master_install_changed | default(false)))
+
+- set_fact:
+    openshift_node_service_status_changed: "{{ (openshift_node_start_result | changed) or (openshift_node_restart_result | changed) }}"
+    openvswitch_service_status_changed: "{{ openvswitch_start_result | changed }}"
+
+- name: wait for node registration
+  command: >
+      {{ openshift_client_binary }} get node {{ private_ip }}
+  register: omd_get_node
+  until: omd_get_node.rc == 0
+  retries: 50
+  delay: 5
+  changed_when: false
+  delegate_to: "{{ groups['openshift-master'][0] }}"
+
+- name: label node
+  command: >
+    {{ openshift_client_binary }} label --overwrite node {{ private_ip }} {{ item }}
+  register: label_node_dc
+  changed_when: "not label_node_dc.stdout.find('not')"
+  delegate_to: "{{ groups['openshift-master'][0] }}"
+  with_items: "{{ openshift_node_labels }}"
