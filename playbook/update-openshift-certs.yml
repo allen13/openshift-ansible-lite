@@ -3,7 +3,7 @@
   become: true
   gather_facts: false
   roles:
-    - openshift-common
+    - openshift-defaults
   tasks:
     - name: remove old certs
       file: path={{ openshift_master_config_path }}/{{ item.file }} state=absent

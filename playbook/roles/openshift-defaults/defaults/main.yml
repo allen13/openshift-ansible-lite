@@ -1,4 +1,4 @@
-openshift_origin_version: 1.4.1
+openshift_origin_version: 1.5.0
 openshift_env_dc: "{{ openshift_env }}-{{ openshift_dc }}"
 openshift_master_api_url: https://openshift.service.os:8443
 openshift_master_public_url: https://{{ hostvars[groups['openshift-master'][0]]['public_ip'] }}:8443
@@ -21,7 +21,6 @@ openshift_cluster_subnet: 198.18.0.0/15
 # 8 bits with a cluster subenet of 198.18.0.0/15 would result in a
 # docker bridge subnet of 198.18.x.0/24 meaning you can only schedule 254 containers on a single node
 openshift_cluster_subnet_length: 8
-openshift_cluster_subnet_first_two_octets: '198.18'
 
 openshift_service_subnet: 192.168.0.0/16
 openshift_kubernetes_service_ip: 192.168.0.1

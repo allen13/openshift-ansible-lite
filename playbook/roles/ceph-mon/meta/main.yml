@@ -1,3 +1,3 @@
 dependencies:
   - ceph-defaults
-  - openshift-common
+  - openshift-defaults
